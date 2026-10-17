@@ -589,7 +589,7 @@ async function handleShared(){
 }
 document.getElementById("importBtn").addEventListener("click",()=>$("pdfFile").click());
 document.getElementById("pdfFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importPdf(f); e.target.value=""; });
-load(); render(); handleShared();
+load(); render(); handleShared(); window.addEventListener("hashchange",handleShared); window.addEventListener("pageshow",e=>{ if(location.hash.startsWith("#itin=")) handleShared(); });
 </script>
 
 </body>
