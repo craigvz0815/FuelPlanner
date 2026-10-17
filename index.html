@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:,">
+<title>Clipper Fuel Planner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a flight-release style sheet. Inputs up top, the leg table as the centerpiece, FBO library below. */
+:root{
+  --bg:#f5f6f3; --panel:#ffffff; --fg:#1b2430; --muted:#5d6878; --line:#d6dbd2;
+  --accent:#1f4e79; --accent-fg:#ffffff; --calc:#eef2ee;
+  --ok:#2e7d4f; --ok-bg:#e3f1e8; --warn:#b26a00; --warn-bg:#fff3dc; --bad:#b3261e; --bad-bg:#fbe4e2;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#141a21; --panel:#1c242e; --fg:#e6eaee; --muted:#9aa6b4; --line:#33404d;
+  --accent:#6fa8dc; --accent-fg:#0f1a26; --calc:#222d39;
+  --ok:#7fd3a0; --ok-bg:#1d3327; --warn:#f0b24f; --warn-bg:#3a2d12; --bad:#ff8a80; --bad-bg:#3f1f1d; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#141a21; --panel:#1c242e; --fg:#e6eaee; --muted:#9aa6b4; --line:#33404d;
+  --accent:#6fa8dc; --accent-fg:#0f1a26; --calc:#222d39;
+  --ok:#7fd3a0; --ok-bg:#1d3327; --warn:#f0b24f; --warn-bg:#3a2d12; --bad:#ff8a80; --bad-bg:#3f1f1d; color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+img{max-width:100%}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:20px}
+h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
+h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+header p{margin:0;color:var(--muted)}
+.panel{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px}
+.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+label.f{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+input,select,button{font:inherit;color:inherit}
+input[type=text],input[type=number],select{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px;width:100%;min-width:0}
+input[type=number]{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:6px 12px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:500}
+button.small{padding:3px 8px;font-size:12px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.toolbar .spacer{flex:1}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:960px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+td.calc{background:var(--calc)}
+td input[type=number]{width:84px}
+td input[type=text]{width:72px}
+td select{width:110px}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.03em}
+.ok{background:var(--ok-bg);color:var(--ok)} .warn{background:var(--warn-bg);color:var(--warn)} .bad{background:var(--bad-bg);color:var(--bad)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.stat{border-left:3px solid var(--accent);padding:4px 0 4px 12px}
+.stat b{display:block;font-family:var(--mono);font-size:20px;font-weight:500;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.notes{margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
+.notes li{margin:2px 0}
+.muted{color:var(--muted);font-size:12px}
+tr.end td{color:var(--muted)}
+details summary{cursor:pointer;color:var(--muted);font-size:13px}
+
+.legs{display:grid;gap:10px}
+.leg{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:grid;gap:8px;background:var(--panel)}
+.leg.end{background:var(--calc)}
+.leg-head{display:flex;align-items:center;gap:10px}
+.leg-head .route{font-family:var(--mono);font-weight:500;font-size:15px}
+.leg-head .pill{margin-left:auto}
+.leg-head button{margin-left:4px}
+.leg-in{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.leg-in label.f input,.leg-in label.f select{width:100%}
+.leg-out{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.leg-out div{background:var(--calc);border-radius:4px;padding:4px 8px}
+.leg-out small{display:block;font-family:var(--sans);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.leg-out b{font-weight:500}
+.stickybar{display:none}
+@media (max-width:640px){
+  body{font-size:15px;padding-block:14px 40px}
+  input[type=text],input[type=number],select{font-size:16px;padding:9px 10px}
+  button{padding:9px 14px}
+  .settings{grid-template-columns:1fr 1fr}
+  .leg-in{grid-template-columns:1fr 1fr}
+  .leg-out{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .summary{grid-template-columns:1fr 1fr}
+  header p{display:none}
+  header{position:relative}
+  .stickybar{display:flex;position:sticky;top:env(safe-area-inset-top,0px);margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px))) 0 calc(-1 * max(16px,env(safe-area-inset-right,0px)));z-index:20;gap:12px;align-items:center;
+    background:var(--accent);color:var(--accent-fg);padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));
+    font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .stickybar div{flex:1} .stickybar b{display:block;font-size:17px;font-weight:500} .stickybar small{font-family:var(--sans);font-size:11px;opacity:.85}
+  .stickybar .pill{background:var(--accent-fg);color:var(--accent)}
+}
+@media (prefers-reduced-motion:no-preference){ button{transition:background .15s} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <h1>Clipper Fuel Planner</h1>
+  <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
+  <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
+</header>
+<div class="stickybar" id="stickybar">
+  <div><b id="bFinal">–</b><small>lbs at end</small></div>
+  <div><b id="bGal">–</b><small>gal to buy</small></div>
+  <div><b id="bWaived">–</b><small>waived</small></div>
+  <span class="pill" id="bCheck">OK</span>
+</div>
+
+<section class="panel">
+  <h2>Trip setup</h2>
+  <div class="settings">
+    <label class="f">Trip name<input type="text" id="tripName"></label>
+    <label class="f">Start airport<input type="text" id="startApt"></label>
+    <label class="f">Start fuel (lbs)<input type="number" id="startFuel" step="10" placeholder="e.g. 2550" inputmode="numeric"></label>
+    <label class="f">Burn (lbs per block hr)<input type="number" id="burn" step="10"></label>
+    <label class="f">Min landing fuel (lbs)<input type="number" id="minLand" step="10"></label>
+    <label class="f">Usable capacity (lbs)<input type="number" id="cap" step="10"></label>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Legs</h2>
+  <div class="toolbar">
+    <button class="primary" id="autoBtn" title="Set every stop to its waiver minimum, then add any shortfall at the cheapest fuel stop">Auto-plan buys</button>
+    <button id="addStop">+ Add stop</button>
+    <span class="spacer"></span>
+    <button id="resetTrip" class="small">Load example</button>
+    <button id="clearTrip" class="small">New trip</button>
+  </div>
+  <div id="legList" class="legs"></div>
+  <p class="muted">Depart, Land, Waived and Still owed are calculated. Quick turn skips parking fees; Overnight includes them. Edit Buy gal to override the minimum.</p>
+</section>
+
+<section class="panel">
+  <h2>Result</h2>
+  <div class="summary">
+    <div class="stat"><b id="sGal">–</b><span>gallons to buy</span></div>
+    <div class="stat"><b id="sLbs">–</b><span>pounds added</span></div>
+    <div class="stat"><b id="sWaived">–</b><span>fees waived</span></div>
+    <div class="stat"><b id="sOwed">–</b><span>fees still owed</span></div>
+    <div class="stat"><b id="sFuelCost">–</b><span>est. fuel cost</span></div>
+    <div class="stat"><b id="sFinal">–</b><span>lbs on final landing</span></div>
+  </div>
+  <ul class="notes" id="notes"></ul>
+</section>
+
+<section class="panel">
+  <details id="libDetails" open>
+  <summary>FBO library · updated 2026-10-19</summary>
+  <div class="tablewrap">
+  <table id="fbos">
+    <thead><tr>
+      <th>ICAO</th><th>FBO</th><th class="num">Min gal</th><th class="num">Waivable fee $</th>
+      <th class="num">Landing $</th><th class="num">Infra $</th><th class="num">Parking $/night</th><th class="num">Fuel $/gal</th><th>Notes</th><th>Source</th><th style="min-width:95px">As of</th>
+    </tr></thead>
+    <tbody id="fboBody"></tbody>
+  </table>
+  </div>
+  <p class="muted">Fees come from Clipper crew itineraries; verify with the FBO before relying on a waiver. Waivable fee = the handling/ramp fee the minimum purchase removes. Landing and infra fees are paid regardless. Parking only counts for Overnight stops. Fuel price blank = unknown; auto-plan then treats it as expensive.</p>
+  </details>
+</section>
+</div>
+
+
+<script>
+const LBS=6.7;
+const FBOS=[
+ {
+  "asOf": "2026-09-25",
+  "fbo": "Modern Aviation",
+  "icao": "APA",
+  "infra": 40,
+  "landing": 0,
+  "min": 100,
+  "notes": "",
+  "parking": 163,
+  "source": "2B2CAI",
+  "waive": 325
+ },
+ {
+  "asOf": "2026-10-19",
+  "fbo": "Archer",
+  "icao": "HHR",
+  "infra": 40,
+  "landing": 0,
+  "min": 136,
+  "notes": "Ask if infra fee waives with fuel",
+  "parking": 375,
+  "price": 11.28,
+  "source": "7HICKX",
+  "waive": 600
+ },
+ {
+  "asOf": "2026-10-19",
+  "fbo": "Avports",
+  "icao": "NUQ",
+  "infra": 0,
+  "landing": 97,
+  "min": 150,
+  "notes": "PPR required for charter; 150 gal ramp waiver confirmed for <20k lb (eff. 5/1/26)",
+  "parking": 130,
+  "price": 10.2,
+  "source": "7HICKX",
+  "waive": 194
+ },
+ {
+  "asOf": "2026-09-23",
+  "fbo": "Coos Aviation",
+  "icao": "OTH",
+  "infra": 0,
+  "landing": 27,
+  "min": 0,
+  "notes": "$150 handling waived, no fuel required",
+  "parking": 75,
+  "price": 7.52,
+  "source": "4V7SII",
+  "waive": 0
+ },
+ {
+  "asOf": "2026-10-15",
+  "fbo": "Signature Aviation",
+  "icao": "SAN",
+  "infra": 86,
+  "landing": 0,
+  "min": 140,
+  "notes": "PPR required",
+  "parking": 1005,
+  "price": 11.08,
+  "source": "OVA4BC",
+  "waive": 600
+ },
+ {
+  "asOf": "2026-10-15",
+  "fbo": "Signature Flight Support",
+  "icao": "SBA",
+  "infra": 36,
+  "landing": 69,
+  "min": 140,
+  "notes": "Landing fee is airport ($4.62/1,000 lb); verify handling min",
+  "parking": 180,
+  "price": 8.75,
+  "source": "OVA4BC",
+  "waive": 360
+ },
+ {
+  "asOf": "2026-09-27",
+  "fbo": "Red Rock Aviation Services",
+  "icao": "SEZ",
+  "infra": 0,
+  "landing": 175,
+  "min": 0,
+  "notes": "Landing/parking not waivable; no handling fee",
+  "parking": 175,
+  "source": "2B2CAI",
+  "waive": 0
+ },
+ {
+  "asOf": "2026-09-23",
+  "fbo": "ACI Jet South",
+  "icao": "SNA",
+  "infra": 0,
+  "landing": 0,
+  "min": 200,
+  "notes": "1st night parking free",
+  "parking": 255,
+  "price": 7.72,
+  "source": "4V7SII",
+  "waive": 465
+ },
+ {
+  "asOf": "2026-10-19",
+  "fbo": "North Las Vegas Airport",
+  "icao": "VGT",
+  "infra": 0,
+  "landing": 0,
+  "min": 0,
+  "notes": "250 gal waives 1 night parking only; no handling fee",
+  "parking": 100,
+  "price": 8.55,
+  "source": "7HICKX",
+  "waive": 0
+ },
+ {
+  "asOf": "",
+  "fbo": "Clipper Aviation (home)",
+  "icao": "VNY",
+  "infra": 0,
+  "landing": 0,
+  "min": 0,
+  "notes": "Home base",
+  "parking": 0,
+  "source": "",
+  "waive": 0
+ }
+];
+const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,burn:700,minLand:1000,cap:3611,
+ legs:[{to:"SBA",block:"0:42",ground:"quick",buy:null},{to:"NUQ",block:"1:18",ground:"quick",buy:null},
+       {to:"HHR",block:"1:24",ground:"quick",buy:null},{to:"VGT",block:"1:12",ground:"quick",buy:null},
+       {to:"VNY",block:"1:18",ground:"end",buy:null}]};
+
+const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",burn:700,minLand:1000,cap:3611,legs:[{to:"",block:"",ground:"quick",buy:null}]};
+let fbos=structuredClone(FBOS), trip;   // fbos is replaced by the shared library once db answers
+function load(){
+  try{ trip=JSON.parse(localStorage.getItem("cfp.trip")) }catch(e){}
+  if(!trip||!Array.isArray(trip.legs)) trip=structuredClone(DEFAULT_TRIP);
+}
+function save(){ try{ localStorage.setItem("cfp.trip",JSON.stringify(trip)) }catch(e){} }
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString();
+const money=n=>"$"+Math.round(n).toLocaleString();
+function hours(s){ const m=/^(\d+):([0-5]\d)$/.exec((s||"").trim()); if(m) return +m[1]+ +m[2]/60; const f=parseFloat(s); return isNaN(f)?0:f }
+function fboFor(icao){ const k=(icao||"").trim().toUpperCase().replace(/^K/,""); return fbos.find(f=>f.icao.toUpperCase()===k) }
+
+function compute(){
+  let fuel=+trip.startFuel||0; const burn=+trip.burn||0; const rows=[]; let tot={gal:0,lbs:0,waived:0,owed:0,cost:0,unknownPrice:false};
+  trip.legs.forEach((leg,i)=>{
+    const f=fboFor(leg.to)||{min:0,waive:0,landing:0,infra:0,parking:0,price:null};
+    const depart=fuel, land=depart-hours(leg.block)*burn;
+    const isEnd=leg.ground==="end";
+    const buy= isEnd?0 : (leg.buy==null? (f.min||0) : +leg.buy||0);
+    const lbs=buy*LBS;
+    const met= buy>=(f.min||0) && (f.min||0)>0;
+    const waived= met? f.waive : 0;
+    let owed= (f.landing||0)+(f.infra||0)+(met?0:(f.waive||0))+(leg.ground==="overnight"?(f.parking||0):0);
+    if(isEnd) owed=0;
+    let check="OK",cls="ok";
+    if(trip.startFuel===""||trip.startFuel==null){check="ENTER START FUEL";cls="warn"}
+    else if(!leg.to){check="ENTER AIRPORT";cls="warn"}
+    else if(depart>+trip.cap) {check="OVER CAPACITY";cls="bad"}
+    else if(land<+trip.minLand){check="LOW FUEL";cls="bad"}
+    else if(!isEnd && (f.min||0)>0 && !met){check="FEE NOT WAIVED";cls="warn"}
+    rows.push({depart,land,buy,lbs,min:f.min||0,waived,owed,check,cls,f});
+    tot.gal+=buy; tot.lbs+=lbs; tot.waived+=waived; tot.owed+=owed;
+    if(buy>0){ if(f.price) tot.cost+=buy*f.price; else tot.unknownPrice=true }
+    fuel=land+lbs;
+  });
+  return {rows,tot,final:fuel};
+}
+
+function autoPlan(){
+  trip.legs.forEach(l=>{ if(l.ground!=="end") l.buy=null });
+  let r=compute();
+  // shortfall: add at cheapest known-price stop (not end), else last stop before end
+  const short=+trip.minLand - r.final;
+  if(short>0){
+    const cands=trip.legs.map((l,i)=>({l,i,f:fboFor(l.to)})).filter(x=>x.l.ground!=="end");
+    if(cands.length){
+      cands.sort((a,b)=>((a.f&&a.f.price)||99)-((b.f&&b.f.price)||99));
+      const t=cands[0]; t.l.buy=Math.ceil((r.rows[t.i].buy*LBS+short)/LBS/5)*5;
+    }
+  }
+  // capacity: trim buys that push the next departure over capacity
+  for(let pass=0;pass<3;pass++){
+    r=compute(); let fixed=true;
+    r.rows.forEach((row,i)=>{ if(i>0 && row.depart>+trip.cap){ const prev=trip.legs[i-1]; const over=row.depart-trip.cap; prev.buy=Math.max(0,Math.floor((r.rows[i-1].buy*LBS-over)/LBS)); fixed=false } });
+    if(fixed) break;
+  }
+  render();
+}
+
+function render(){
+  $("tripName").value=trip.name; $("startApt").value=trip.start; $("startFuel").value=trip.startFuel;
+  $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap;
+  const r=compute(); const list=$("legList"); list.innerHTML="";
+  let from=trip.start;
+  r.rows.forEach((row,i)=>{
+    const leg=trip.legs[i]; const isEnd=leg.ground==="end";
+    const card=document.createElement("div"); card.className="leg"+(isEnd?" end":"");
+    const ov= leg.buy!=null && !isEnd ? " (override)" : "";
+    card.innerHTML=`<div class="leg-head"><span class="muted">Leg ${i+1}</span><span class="route">${from} → ${leg.to||"?"}</span>
+        <span class="pill ${row.cls}">${row.check}</span><button class="small" data-del="${i}" title="Remove stop">×</button></div>
+      <div class="leg-in">
+        <label class="f">To<input type="text" id="to${i}" value="${leg.to}" data-i="${i}" data-k="to" autocapitalize="characters" placeholder="ICAO"></label>
+        <label class="f">Block h:mm<input type="text" id="blk${i}" value="${leg.block}" data-i="${i}" data-k="block" inputmode="numeric" placeholder="1:05"></label>
+        <label class="f">Ground<select id="gr${i}" data-i="${i}" data-k="ground">
+          <option value="quick"${leg.ground==="quick"?" selected":""}>Quick turn</option>
+          <option value="overnight"${leg.ground==="overnight"?" selected":""}>Overnight</option>
+          <option value="end"${isEnd?" selected":""}>Trip end</option></select></label>
+        <label class="f">Buy gal${ov}${isEnd?'<input type="text" value="–" disabled>':`<input type="number" id="buy${i}" value="${row.buy}" data-i="${i}" data-k="buy" step="5" min="0" inputmode="numeric">`}</label>
+      </div>
+      <div class="leg-out">
+        <div><small>Depart</small><b>${fmt(row.depart)}</b></div>
+        <div><small>Land</small><b>${fmt(row.land)}</b></div>
+        <div><small>Buy lbs</small><b>${isEnd?"–":fmt(row.lbs)}</b></div>
+        <div><small>Min gal</small><b>${isEnd?"–":(row.min||"–")}</b></div>
+        <div><small>Waived</small><b>${isEnd?"–":(row.waived?money(row.waived):"$0")}</b></div>
+        <div><small>Still owed</small><b>${isEnd?"–":(row.owed?money(row.owed):"$0")}</b></div>
+      </div>`;
+    list.appendChild(card); from=leg.to;
+  });
+  const worst=r.rows.find(x=>x.cls==="bad")||r.rows.find(x=>x.cls==="warn");
+  $("bFinal").textContent=fmt(r.final); $("bGal").textContent=fmt(r.tot.gal); $("bWaived").textContent=money(r.tot.waived);
+  $("bCheck").textContent= worst? worst.check : "OK";
+  $("sGal").textContent=fmt(r.tot.gal); $("sLbs").textContent=fmt(r.tot.lbs);
+  $("sWaived").textContent=money(r.tot.waived); $("sOwed").textContent=money(r.tot.owed);
+  $("sFuelCost").textContent=(r.tot.unknownPrice?"≥ ":"")+money(r.tot.cost);
+  $("sFinal").textContent=fmt(r.final);
+  const notes=[];
+  r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to) return;
+    if(row.cls==="bad") notes.push(`${l.to}: ${row.check} (${row.check==="LOW FUEL"?"land "+fmt(row.land)+" lbs":"depart "+fmt(row.depart)+" lbs"}). Buy more at an earlier stop or less at the one before.`);
+    if(row.cls==="warn") notes.push(`${l.to}: buying ${row.buy} gal, minimum is ${row.min} — ${money(row.f.waive)} fee not waived.`);
+    if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in FBO library — add it below to include fees.`);
+    if(row.f.notes&&row.f.notes!=="Home base") notes.push(`${l.to}: ${row.f.notes}.`);
+  });
+  if(r.tot.unknownPrice) notes.push("Fuel cost excludes stops with no price on file.");
+  $("notes").innerHTML=notes.map(n=>`<li>${n}</li>`).join("");
+  renderFbos(); save();
+}
+
+function renderFbos(){
+  const tb=$("fboBody"); tb.innerHTML="";
+  fbos.slice().sort((a,b)=>a.icao.localeCompare(b.icao)).forEach(f=>{
+    const tr=document.createElement("tr");
+    const n=v=>v==null||v===""?"–":v;
+    tr.innerHTML=`<td><b>${f.icao}</b></td><td>${f.fbo||""}</td><td class="num">${n(f.min)}</td><td class="num">${n(f.waive)}</td>
+      <td class="num">${n(f.landing)}</td><td class="num">${n(f.infra)}</td><td class="num">${n(f.parking)}</td><td class="num">${f.price!=null?f.price.toFixed(2):"–"}</td>
+      <td style="white-space:normal">${f.notes||""}</td><td>${f.source||""}</td><td>${f.asOf||""}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+document.addEventListener("input",e=>{
+  const t=e.target; if(!t.dataset) return;
+  if(t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; const k=t.dataset.k;
+    if(k==="buy"){ l.buy= t.value===""? null : +t.value }
+    else if(k==="to"){ l.to=t.value.toUpperCase() }
+    else l[k]=t.value;
+    if(k==="ground"&&t.value==="end") l.buy=null;
+    render(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); el.setSelectionRange&&el.value.length&&el.setSelectionRange(el.value.length,el.value.length)} }
+  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap"};
+    if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; render(); $(keep).focus() } }
+});
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.del!=null){ trip.legs.splice(+b.dataset.del,1); render() }
+  else if(b.id==="addStop"){ const endIdx=trip.legs.findIndex(l=>l.ground==="end"); const nl={to:"",block:"1:00",ground:"quick",buy:null}; if(endIdx>=0) trip.legs.splice(endIdx,0,nl); else trip.legs.push(nl); render() }
+  else if(b.id==="autoBtn") autoPlan();
+  else if(b.id==="reloadBtn") location.reload();
+  else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); render() }
+  else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap}); render() }
+});
+if(matchMedia("(max-width:640px)").matches) $("libDetails").open=false;
+load(); render();
+</script>
+
+</body>
+</html>
