@@ -4,7 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="data:,">
+<link rel="icon" href="icon-64.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fuel Planner">
+<meta name="theme-color" content="#08001f">
 <title>Clipper Fuel Planner</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -70,6 +75,8 @@ tr.end td{color:var(--muted)}
 details summary{cursor:pointer;color:var(--muted);font-size:13px}
 
 .legs{display:grid;gap:10px}
+#importMsg{margin:0 0 10px;padding:8px 10px;border-radius:4px;background:var(--ok-bg);color:var(--ok)}
+#importMsg.err{background:var(--bad-bg);color:var(--bad)}
 .leg{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:grid;gap:8px;background:var(--panel)}
 .leg.end{background:var(--calc)}
 .leg-head{display:flex;align-items:center;gap:10px}
@@ -132,14 +139,17 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
 <section class="panel">
   <h2>Legs</h2>
   <div class="toolbar">
-    <button class="primary" id="autoBtn" title="Set every stop to its waiver minimum, then add any shortfall at the cheapest fuel stop">Auto-plan buys</button>
+    <button class="primary" id="importBtn">Import itinerary PDF</button>
+    <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
+    <button id="autoBtn" title="Set every stop to its waiver minimum, then add any shortfall at the cheapest fuel stop">Auto-plan buys</button>
     <button id="addStop">+ Add stop</button>
     <span class="spacer"></span>
     <button id="resetTrip" class="small">Load example</button>
     <button id="clearTrip" class="small">New trip</button>
   </div>
+  <div id="importMsg" class="muted" hidden></div>
   <div id="legList" class="legs"></div>
-  <p class="muted">Depart, Land, Waived and Still owed are calculated. Quick turn skips parking fees; Overnight includes them. Edit Buy gal to override the minimum.</p>
+  <p class="muted">Import a Clipper crew itinerary PDF to fill the legs and fees automatically (the file stays on your device). Depart, Land, Waived and Still owed are calculated. Quick turn skips parking fees; Overnight includes them. Edit Buy gal to override the minimum.</p>
 </section>
 
 <section class="panel">
@@ -319,7 +329,12 @@ function save(){ try{ localStorage.setItem("cfp.trip",JSON.stringify(trip)) }cat
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString();
 const money=n=>"$"+Math.round(n).toLocaleString();
-function hours(s){ const m=/^(\d+):([0-5]\d)$/.exec((s||"").trim()); if(m) return +m[1]+ +m[2]/60; const f=parseFloat(s); return isNaN(f)?0:f }
+function hours(s){ s=(s||"").trim().replace(/[.,;]/g,":");
+  let m=/^(\d+):([0-5]?\d)$/.exec(s); if(m) return +m[1]+ +m[2]/60;
+  if(/^\d{3,4}$/.test(s)) return +s.slice(0,-2)+ +s.slice(-2)/60;   // 105 → 1:05, 0042 → 0:42
+  if(/^\d{1,2}$/.test(s)) return +s/60;                              // 42 → 0:42 (minutes)
+  return 0 }
+function blockFmt(h){ const t=Math.round(h*60); return Math.floor(t/60)+":"+String(t%60).padStart(2,"0") }
 function fboFor(icao){ const k=(icao||"").trim().toUpperCase().replace(/^K/,""); return fbos.find(f=>f.icao.toUpperCase()===k) }
 
 function compute(){
@@ -382,7 +397,7 @@ function render(){
         <span class="pill ${row.cls}">${row.check}</span><button class="small" data-del="${i}" title="Remove stop">×</button></div>
       <div class="leg-in">
         <label class="f">To<input type="text" id="to${i}" value="${leg.to}" data-i="${i}" data-k="to" autocapitalize="characters" placeholder="ICAO"></label>
-        <label class="f">Block h:mm<input type="text" id="blk${i}" value="${leg.block}" data-i="${i}" data-k="block" inputmode="numeric" placeholder="1:05"></label>
+        <label class="f">Block (type 105 for 1:05)<input type="text" id="blk${i}" value="${leg.block}" data-i="${i}" data-k="block" inputmode="numeric" placeholder="105 = 1:05"></label>
         <label class="f">Ground<select id="gr${i}" data-i="${i}" data-k="ground">
           <option value="quick"${leg.ground==="quick"?" selected":""}>Quick turn</option>
           <option value="overnight"${leg.ground==="overnight"?" selected":""}>Overnight</option>
@@ -400,12 +415,12 @@ function render(){
     list.appendChild(card); from=leg.to;
   });
   const worst=r.rows.find(x=>x.cls==="bad")||r.rows.find(x=>x.cls==="warn");
-  $("bFinal").textContent=fmt(r.final); $("bGal").textContent=fmt(r.tot.gal); $("bWaived").textContent=money(r.tot.waived);
+  $("bFinal").textContent=(trip.startFuel===""||trip.startFuel==null)?"–":fmt(r.final); $("bGal").textContent=fmt(r.tot.gal); $("bWaived").textContent=money(r.tot.waived);
   $("bCheck").textContent= worst? worst.check : "OK";
   $("sGal").textContent=fmt(r.tot.gal); $("sLbs").textContent=fmt(r.tot.lbs);
   $("sWaived").textContent=money(r.tot.waived); $("sOwed").textContent=money(r.tot.owed);
   $("sFuelCost").textContent=(r.tot.unknownPrice?"≥ ":"")+money(r.tot.cost);
-  $("sFinal").textContent=fmt(r.final);
+  $("sFinal").textContent=(trip.startFuel===""||trip.startFuel==null)?"–":fmt(r.final);
   const notes=[];
   r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to) return;
     if(row.cls==="bad") notes.push(`${l.to}: ${row.check} (${row.check==="LOW FUEL"?"land "+fmt(row.land)+" lbs":"depart "+fmt(row.depart)+" lbs"}). Buy more at an earlier stop or less at the one before.`);
@@ -423,7 +438,7 @@ function renderFbos(){
   fbos.slice().sort((a,b)=>a.icao.localeCompare(b.icao)).forEach(f=>{
     const tr=document.createElement("tr");
     const n=v=>v==null||v===""?"–":v;
-    tr.innerHTML=`<td><b>${f.icao}</b></td><td>${f.fbo||""}</td><td class="num">${n(f.min)}</td><td class="num">${n(f.waive)}</td>
+    tr.innerHTML=`<td><b>${f.icao}</b>${f.fromPdf?' <span class="pill warn" title="From the imported itinerary, this session only">PDF</span>':""}</td><td>${f.fbo||""}</td><td class="num">${n(f.min)}</td><td class="num">${n(f.waive)}</td>
       <td class="num">${n(f.landing)}</td><td class="num">${n(f.infra)}</td><td class="num">${n(f.parking)}</td><td class="num">${f.price!=null?f.price.toFixed(2):"–"}</td>
       <td style="white-space:normal">${f.notes||""}</td><td>${f.source||""}</td><td>${f.asOf||""}</td>`;
     tb.appendChild(tr);
@@ -441,6 +456,7 @@ document.addEventListener("input",e=>{
   } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap"};
     if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; render(); $(keep).focus() } }
 });
+document.addEventListener("focusout",e=>{ const t=e.target; if(t.dataset&&t.dataset.k==="block"&&t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; if(l.block&&hours(l.block)>0){ l.block=blockFmt(hours(l.block)); render() } } });
 document.addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
   if(b.dataset.del!=null){ trip.legs.splice(+b.dataset.del,1); render() }
@@ -451,7 +467,94 @@ document.addEventListener("click",e=>{
   else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap}); render() }
 });
 if(matchMedia("(max-width:640px)").matches) $("libDetails").open=false;
-load(); render();
+// Shared parser (same code goes into the page)
+function parseItinerary(text){
+  const t=text.replace(/[^\x20-\x7e\n]/g," ").replace(/\s+/g," ");
+  const out={id:null,client:null,aircraft:null,legs:[],fees:{},fuel:{}};
+  const idm=/Crew Itinerary \(([A-Z0-9]+)\)/.exec(t); if(idm) out.id=idm[1];
+  const am=/\b(N\d{1,5}[A-Z]{0,2})\b/.exec(t); if(am) out.aircraft=am[1];
+  const legRe=/Leg (\d+): Pax: (\S+) ([A-Z0-9]{3,4}) (\d\d\/\d\d\/\d{4}) - (\d\d:\d\d) [A-Z]{2,4} \(\d\d:\d\d Z\) (\d+:\d\d) ([A-Z0-9]{3,4}) (\d\d\/\d\d\/\d{4}) - (\d\d:\d\d) [A-Z]{2,4} \(\d\d:\d\d Z\)/g;
+  let m; const seen=new Set();
+  while((m=legRe.exec(t))){ const n=+m[1]; if(seen.has(n)) continue; seen.add(n);
+    out.legs.push({n,pax:m[2],from:m[3],depDate:m[4],depTime:m[5],block:m[6],to:m[7],arrDate:m[8],arrTime:m[9]}); }
+  out.legs.sort((a,b)=>a.n-b.n);
+  const feeRe=/Fees \(([A-Z0-9]{3,4})\): (.*?) \/ Landing fee: \$([\d,]+) \/ Parking fee: \$([\d,]+)(?:, (\d+) nights? waived with (\d+) gals)? \/ Ground handling fee: \$([\d,]+)(?:, waived with (\d+) gals)? \/ Infrastructure fee: \$([\d,]+)(?:, waived with (\d+) gals)?/g;
+  while((m=feeRe.exec(t))){ const icao=m[1]; if(out.fees[icao]) continue;
+    const num=s=>s==null?null:+s.replace(/,/g,"");
+    out.fees[icao]={fbo:m[2].trim(),landing:num(m[3]),parking:num(m[4]),parkingNights:num(m[5]),parkingWaiveGal:num(m[6]),
+      handling:num(m[7]),handlingWaiveGal:num(m[8]),infra:num(m[9]),infraWaiveGal:num(m[10])}; }
+  const fuelRe=/Fuel \(([A-Z0-9]{3,4})\): (.*?) \/ (\w+): ((?:\d[\d,]*\+: \$[\d.]+ ?\/? ?)+)/g;
+  while((m=fuelRe.exec(t))){ const icao=m[1]; if(out.fuel[icao]) continue;
+    const tiers=[...m[4].matchAll(/([\d,]+)\+: \$([\d.]+)/g)].map(x=>({min:+x[1].replace(/,/g,""),price:+x[2]}));
+    out.fuel[icao]={brand:m[3],tiers}; }
+  return out;
+}
+
+function fmtDate(d){ const [m,dd,y]=d.split("/"); return `${y}-${m}-${dd}`; }
+function feesToFbo(icao,f,fuel,id,asOf){
+  const e={icao,fbo:f.fbo,landing:f.landing||0,infra:f.infra||0,parking:f.parking||0,min:0,waive:0,notes:[],source:id,asOf,fromPdf:true};
+  if(f.handling>0){ if(f.handlingWaiveGal>0){ e.min=f.handlingWaiveGal; e.waive=f.handling } else e.notes.push(`$${f.handling} handling waived, no fuel required`) }
+  if(f.infra>0&&f.infraWaiveGal>0) e.notes.push(`infra waived with ${f.infraWaiveGal} gal`);
+  if(f.parkingWaiveGal!=null){ e.notes.push(f.parkingWaiveGal>0?`${f.parkingNights||1} night parking waived with ${f.parkingWaiveGal} gal`:`${f.parkingNights||1} night parking free`) }
+  if(fuel&&fuel.tiers&&fuel.tiers.length){ e.price=fuel.tiers[0].price; if(fuel.tiers.length>1) e.notes.push(fuel.brand+" tiers: "+fuel.tiers.map(t=>`${t.min}+ $${t.price}`).join(" · ")) }
+  e.notes=e.notes.join("; "); return e;
+}
+function applyItinerary(it){
+  if(!it.legs.length) throw new Error("No legs found. Is this a Clipper crew itinerary?");
+  const legs=it.legs;
+  trip={name:`${it.id||"Trip"} · ${legs[0].depDate}${it.aircraft?" · "+it.aircraft:""}`,start:legs[0].from,startFuel:"",burn:trip.burn||700,minLand:trip.minLand||1000,cap:trip.cap||3611,legs:[]};
+  legs.forEach((l,i)=>{ const next=legs[i+1];
+    const ground= !next? "end" : (next.depDate!==l.arrDate? "overnight":"quick");
+    trip.legs.push({to:l.to,block:l.block,ground,buy:null}); });
+  const changes=[];
+  Object.entries(it.fees).forEach(([icao,f])=>{
+    const e=feesToFbo(icao,f,it.fuel[icao],it.id,fmtDate(legs[0].depDate));
+    const idx=fbos.findIndex(x=>x.icao===icao); const old=idx>=0?fbos[idx]:null;
+    if(!old) changes.push(`${icao} new`);
+    else if(old.min!==e.min||old.waive!==e.waive||old.landing!==e.landing||old.infra!==e.infra||old.parking!==e.parking) changes.push(`${icao} changed (was ${old.min} gal / $${old.waive})`);
+    if(idx>=0) fbos[idx]=Object.assign({},old,e); else fbos.push(e);
+  });
+  return changes;
+}
+async function importPdf(file){
+  const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Reading "+file.name+"…";
+  try{
+    if(!window.pdfjsLib){ await new Promise((ok,err)=>{ const sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"; sc.onload=ok; sc.onerror=()=>err(new Error("Could not load the PDF reader (offline?)")); document.head.appendChild(sc) });
+      pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }
+    const buf=await file.arrayBuffer(); const doc=await pdfjsLib.getDocument({data:buf}).promise;
+    let text="";
+    for(let p=1;p<=doc.numPages;p++){ const pg=await doc.getPage(p); const c=await pg.getTextContent(); let last=null;
+      for(const item of c.items){ if(!item.str) continue; if(last&&Math.abs(last.transform[5]-item.transform[5])>2) text+="\n"; else if(last) text+=" "; text+=item.str; last=item; } text+="\n"; }
+    importText(text,file.name);
+  }catch(e){ msg.className="err"; msg.textContent="Import failed: "+(e.message||e); }
+}
+function importText(text,label){
+  const msg=$("importMsg"); msg.hidden=false; msg.className="";
+  try{
+    const it=parseItinerary(text); const changes=applyItinerary(it); render();
+    const feeApts=Object.keys(it.fees);
+    msg.textContent=`Imported ${it.id||label}: ${it.legs.length} legs, fees for ${feeApts.length?feeApts.join(", "):"no airports"}.`+(changes.length?` Library differences: ${changes.join("; ")} — send this itinerary to Craig to update the shared list.`:"")+" Enter start fuel, then Auto-plan.";
+    $("startFuel").focus();
+  }catch(e){ msg.className="err"; msg.textContent="Import failed: "+(e.message||e); }
+}
+// Android share sheet → service worker → cache → here
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+async function handleShared(){
+  if(new URLSearchParams(location.search).get("shared")==="1"){
+    history.replaceState(null,"",location.pathname);
+    try{ const c=await caches.open("shared"); const r=await c.match("shared-pdf");
+      if(r){ const blob=await r.blob(); const name=r.headers.get("X-Name")||"itinerary.pdf"; await c.delete("shared-pdf"); importPdf(new File([blob],name,{type:"application/pdf"})); } }catch(e){}
+  }
+  // iPhone Shortcut → opens the page with the itinerary text in the URL fragment (#itin=<base64 text>)
+  const h=location.hash; if(h.startsWith("#itin=")){
+    history.replaceState(null,"",location.pathname);
+    try{ const b64=decodeURIComponent(h.slice(6)); const text=new TextDecoder().decode(Uint8Array.from(atob(b64),c=>c.charCodeAt(0))); importText(text,"shared itinerary"); }
+    catch(e){ const msg=$("importMsg"); msg.hidden=false; msg.className="err"; msg.textContent="Could not read the shared itinerary text."; }
+  }
+}
+document.getElementById("importBtn").addEventListener("click",()=>$("pdfFile").click());
+document.getElementById("pdfFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importPdf(f); e.target.value=""; });
+load(); render(); handleShared();
 </script>
 
 </body>
