@@ -75,6 +75,11 @@ tr.end td{color:var(--muted)}
 details summary{cursor:pointer;color:var(--muted);font-size:13px}
 
 .legs{display:grid;gap:10px}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.step{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 8px;font-size:14px;font-weight:500;border-radius:6px}
+.step b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--fg);color:var(--panel);font-size:12px}
+.step.primary b{background:var(--accent-fg);color:var(--accent)}
+@media (max-width:640px){ .steps{grid-template-columns:1fr 1fr} .step{padding:14px 8px} }
 #importMsg{margin:0 0 10px;padding:8px 10px;border-radius:4px;background:var(--ok-bg);color:var(--ok)}
 #importMsg.err{background:var(--bad-bg);color:var(--bad)}
 .leg{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:grid;gap:8px;background:var(--panel)}
@@ -116,7 +121,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
   <h1>Clipper Fuel Planner</h1>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v11</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v12</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -139,16 +144,18 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
 
 <section class="panel">
   <h2>Legs</h2>
-  <div class="toolbar">
-    <button class="primary" id="importBtn">Import itinerary PDF</button>
+  <div class="steps">
+    <button id="clearTrip" class="step"><b>1</b><span>New day</span></button>
+    <button id="importBtn" class="step primary"><b>2</b><span>Add itinerary</span></button>
+    <button id="daysBtn" class="step"><b>3</b><span>Pick day</span></button>
+    <button id="autoBtn" class="step"><b>4</b><span>Auto-plan</span></button>
+  </div>
+  <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
+  <div class="toolbar" style="margin-top:8px">
     <button id="pasteToggle" class="small" title="Paste itinerary text copied from a PDF">Paste text</button>
-    <button id="daysBtn" class="small" title="Switch between days built from the imported itineraries">Days</button>
-    <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
-    <button id="autoBtn" title="Set every stop to its waiver minimum, then add any shortfall at the cheapest fuel stop">Auto-plan buys</button>
-    <button id="addStop">+ Add stop</button>
+    <button id="addStop" class="small">+ Add stop</button>
     <span class="spacer"></span>
     <button id="resetTrip" class="small">Load example</button>
-    <button id="clearTrip" class="small">New trip</button>
   </div>
   <div id="pasteBox" hidden style="margin:0 0 10px;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--calc)">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -570,7 +577,7 @@ function loadDay(key){
 }
 let currentDayKey=null;
 function dayButtons(container){
-  const days=buildDays(); if(!days.length) return;
+  const days=buildDays();
   days.forEach(d=>{ const bt=document.createElement("button"); bt.className="small"+(d.key===currentDayKey?" primary":""); bt.style.margin="4px 6px 0 0"; bt.textContent=d.label; bt.dataset.day=d.key; container.appendChild(bt) });
   const cl=document.createElement("button"); cl.className="small"; cl.style.margin="4px 0 0 0"; cl.textContent="Clear itineraries"; cl.id="clearPool"; container.appendChild(cl);
 }
