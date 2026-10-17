@@ -148,6 +148,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
     <button id="clearTrip" class="small">New trip</button>
   </div>
   <div id="importMsg" class="muted" hidden></div>
+  <div id="importDebug" hidden><textarea id="importDebugText" readonly style="width:100%;height:160px;font:12px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px"></textarea>
+    <button class="small" id="copyDebug">Copy text</button></div>
   <div id="legList" class="legs"></div>
   <p class="muted">Import a Clipper crew itinerary PDF to fill the legs and fees automatically (the file stays on your device). Depart, Land, Waived and Still owed are calculated. Quick turn skips parking fees; Overnight includes them. Edit Buy gal to override the minimum.</p>
 </section>
@@ -463,17 +465,19 @@ document.addEventListener("click",e=>{
   else if(b.id==="addStop"){ const endIdx=trip.legs.findIndex(l=>l.ground==="end"); const nl={to:"",block:"1:00",ground:"quick",buy:null}; if(endIdx>=0) trip.legs.splice(endIdx,0,nl); else trip.legs.push(nl); render() }
   else if(b.id==="autoBtn") autoPlan();
   else if(b.id==="reloadBtn") location.reload();
+  else if(b.id==="copyDebug"){ const ta=$("importDebugText"); ta.select(); navigator.clipboard&&navigator.clipboard.writeText(ta.value).catch(()=>{}); b.textContent="Copied"; }
   else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); render() }
   else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap}); render() }
 });
 if(matchMedia("(max-width:640px)").matches) $("libDetails").open=false;
 // Shared parser (same code goes into the page)
 function parseItinerary(text){
+  if(/^\s*\{\\rtf/.test(text)){ text=text.replace(/\\par[d]?\b/g,"\n").replace(/\\(tab|line|cell|row)\b/g," ").replace(/\\'[0-9a-f]{2}/g," ").replace(/\\[a-zA-Z]+-?\d* ?/g,"").replace(/[{}]/g,"") }
   const t=text.replace(/[^\x20-\x7e\n]/g," ").replace(/\s+/g," ");
   const out={id:null,client:null,aircraft:null,legs:[],fees:{},fuel:{}};
   const idm=/Crew Itinerary \(([A-Z0-9]+)\)/.exec(t); if(idm) out.id=idm[1];
   const am=/\b(N\d{1,5}[A-Z]{0,2})\b/.exec(t); if(am) out.aircraft=am[1];
-  const legRe=/Leg (\d+): Pax: (\S+) ([A-Z0-9]{3,4}) (\d\d\/\d\d\/\d{4}) - (\d\d:\d\d) [A-Z]{2,4} \(\d\d:\d\d Z\) (\d+:\d\d) ([A-Z0-9]{3,4}) (\d\d\/\d\d\/\d{4}) - (\d\d:\d\d) [A-Z]{2,4} \(\d\d:\d\d Z\)/g;
+  const legRe=/Leg\s*(\d+)\s*:\s*Pax\s*:\s*(\S+)\s+([A-Z0-9]{3,4})\s+(\d\d\/\d\d\/\d{4})\s*-\s*(\d\d:\d\d)\s*[A-Z]{2,4}\s*\(\s*\d\d:\d\d\s*Z\s*\)\s*(\d+:\d\d)\s+([A-Z0-9]{3,4})\s+(\d\d\/\d\d\/\d{4})\s*-\s*(\d\d:\d\d)\s*[A-Z]{2,4}\s*\(\s*\d\d:\d\d\s*Z\s*\)/g;
   let m; const seen=new Set();
   while((m=legRe.exec(t))){ const n=+m[1]; if(seen.has(n)) continue; seen.add(n);
     out.legs.push({n,pax:m[2],from:m[3],depDate:m[4],depTime:m[5],block:m[6],to:m[7],arrDate:m[8],arrTime:m[9]}); }
@@ -529,13 +533,14 @@ async function importPdf(file){
   }catch(e){ msg.className="err"; msg.textContent="Import failed: "+(e.message||e); }
 }
 function importText(text,label){
-  const msg=$("importMsg"); msg.hidden=false; msg.className="";
+  const msg=$("importMsg"); msg.hidden=false; msg.className=""; const dbg=$("importDebug"); dbg.hidden=true;
   try{
     const it=parseItinerary(text); const changes=applyItinerary(it); render();
     const feeApts=Object.keys(it.fees);
     msg.textContent=`Imported ${it.id||label}: ${it.legs.length} legs, fees for ${feeApts.length?feeApts.join(", "):"no airports"}.`+(changes.length?` Library differences: ${changes.join("; ")} — send this itinerary to Craig to update the shared list.`:"")+" Enter start fuel, then Auto-plan.";
     $("startFuel").focus();
-  }catch(e){ msg.className="err"; msg.textContent="Import failed: "+(e.message||e); }
+  }catch(e){ msg.className="err"; msg.textContent="Import failed: "+(e.message||e)+" — the extracted text is shown below; copy it and send it to Craig.";
+    dbg.hidden=false; $("importDebugText").value=text.slice(0,20000); }
 }
 // Android share sheet → service worker → cache → here
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
