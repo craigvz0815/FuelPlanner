@@ -130,7 +130,7 @@ table.plan tr.nobuy td{color:var(--muted)}
   <div class="brand"><img src="icon-192.png" alt="Clipper Aviation" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v19</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v21</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -148,6 +148,7 @@ table.plan tr.nobuy td{color:var(--muted)}
     <label class="f">Burn (lbs per block hr)<input type="number" id="burn" step="10"></label>
     <label class="f">Min landing fuel (lbs)<input type="number" id="minLand" step="10"></label>
     <label class="f">Usable capacity (lbs)<input type="number" id="cap" step="10"></label>
+    <label class="f">Fuel wanted at end (lbs)<input type="number" id="endTarget" step="10" placeholder="= min landing" inputmode="numeric"></label>
   </div>
 </section>
 
@@ -161,7 +162,7 @@ table.plan tr.nobuy td{color:var(--muted)}
   <h2>Legs</h2>
   <div class="steps">
     <button id="clearTrip" class="step"><b>1</b><span>New day</span></button>
-    <button id="importBtn" class="step primary"><b>2</b><span>Add itinerary</span></button>
+    <button id="importBtn" class="step"><b>2</b><span>Add itinerary</span></button>
     <button id="daysBtn" class="step"><b>3</b><span>Pick day</span></button>
     <button id="autoBtn" class="step"><b>4</b><span>Auto-plan</span></button>
   </div>
@@ -411,20 +412,31 @@ function compute(){
   return {rows,tot,final:fuel};
 }
 
+let lastPlanNote="";
 function autoPlan(){
-  trip.legs.forEach(l=>{ if(l.ground!=="end") l.buy=null });
+  lastPlanNote="";
+  trip.legs.forEach(l=>{ if(l.ground!=="end") l.buy=null });          // 1. waiver minimums everywhere
   let r=compute();
-  // shortfall: add at cheapest known-price stop (not end), else last stop before end
-  const short=+trip.minLand - r.final;
+  const target=Math.max(+trip.minLand||0, +trip.endTarget||0);
+  let short=target - r.final;                                           // 2. extra fuel wanted at the end of the day
   if(short>0){
-    const cands=trip.legs.map((l,i)=>({l,i,f:fboFor(l.to)})).filter(x=>x.l.ground!=="end");
-    if(cands.length){
-      cands.sort((a,b)=>((a.f&&a.f.price)||99)-((b.f&&b.f.price)||99));
-      const t=cands[0]; t.l.buy=Math.ceil((r.rows[t.i].buy*LBS+short)/LBS/5)*5;
+    const cands=trip.legs.map((l,i)=>({l,i,f:fboFor(l.to)||{}})).filter(x=>x.l.ground!=="end"&&x.l.to);
+    cands.sort((a,b)=>((a.f.price)||99)-((b.f.price)||99));            // cheapest first; no price = treated as expensive
+    const placed=[];
+    for(const c of cands){ if(short<=0) break;
+      r=compute();
+      // room: adding fuel at stop c raises every later departure by the same amount — stay under capacity on all of them
+      let room=Infinity; for(let i=c.i+1;i<r.rows.length;i++) room=Math.min(room, +trip.cap - r.rows[i].depart);
+      if(!isFinite(room)||room<=0) continue;
+      const addGal=Math.min(Math.ceil(short/LBS/5)*5, Math.floor(room/LBS));   // cover the shortfall in 5-gal steps, never over capacity
+      if(addGal<=0) continue;
+      c.l.buy=(r.rows[c.i].buy||0)+addGal; short-=addGal*LBS;
+      placed.push(`${addGal} gal at ${c.l.to}${c.f.price?" ($"+c.f.price.toFixed(2)+"/gal)":" (no price on file)"}`);
     }
+    if(placed.length) lastPlanNote="Extra fuel beyond waiver minimums placed at the cheapest stop(s): "+placed.join(", ")+".";
+    if(short>LBS) lastPlanNote+=" Could not fit "+fmt(short)+" more lbs within capacity.";
   }
-  // capacity: trim buys that push the next departure over capacity
-  for(let pass=0;pass<3;pass++){
+  for(let pass=0;pass<3;pass++){                                        // 3. safety: never exceed capacity
     r=compute(); let fixed=true;
     r.rows.forEach((row,i)=>{ if(i>0 && row.depart>+trip.cap){ const prev=trip.legs[i-1]; const over=row.depart-trip.cap; prev.buy=Math.max(0,Math.floor((r.rows[i-1].buy*LBS-over)/LBS)); fixed=false } });
     if(fixed) break;
@@ -434,7 +446,7 @@ function autoPlan(){
 
 function render(){
   $("tripName").value=trip.name; $("startApt").value=trip.start; $("startFuel").value=trip.startFuel;
-  $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap;
+  $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap; $("endTarget").value=trip.endTarget||"";
   const r=compute(); const list=$("legList"); list.innerHTML=""; const noFuel=(trip.startFuel===""||trip.startFuel==null);
   let from=trip.start;
   r.rows.forEach((row,i)=>{
@@ -462,6 +474,9 @@ function render(){
       </div>`;
     list.appendChild(card); from=leg.to;
   });
+  // highlight the next step
+  const hasLegs=trip.legs.some(l=>l.to); const next= !pool.legs.length&&!hasLegs? "importBtn" : (!hasLegs? "daysBtn" : (noFuel? null : "autoBtn"));
+  ["clearTrip","importBtn","daysBtn","autoBtn"].forEach(id=>$(id).classList.toggle("primary",id===next));
   // Fuel plan summary
   const planOn=!noFuel && trip.legs.some(l=>l.to);
   $("planPanel").hidden=!planOn;
@@ -489,6 +504,7 @@ function render(){
     if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in FBO library — add it below to include fees.`);
     if(row.f.notes&&row.f.notes!=="Home base") notes.push(`${l.to}: ${row.f.notes}.`);
   });
+  if(lastPlanNote) notes.unshift(lastPlanNote);
   if(r.tot.unknownPrice) notes.push("Fuel cost excludes stops with no price on file.");
   $("notes").innerHTML=notes.map(n=>`<li>${n}</li>`).join("");
   renderFbos(); save();
@@ -514,7 +530,7 @@ document.addEventListener("input",e=>{
     else l[k]=t.value;
     if(k==="ground"&&t.value==="end") l.buy=null;
     render(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); el.setSelectionRange&&el.value.length&&el.setSelectionRange(el.value.length,el.value.length)} }
-  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap"};
+  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",endTarget:"endTarget"};
     if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; render(); $(keep).focus() } }
 });
 document.addEventListener("focusout",e=>{ const t=e.target; if(t.dataset&&t.dataset.k==="block"&&t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; if(l.block&&hours(l.block)>0){ l.block=blockFmt(hours(l.block)); render() } } });
@@ -535,7 +551,7 @@ document.addEventListener("click",e=>{
   else if(b.id==="clearPool"){ pool={legs:[],fbo:[]}; savePool(); fbos=structuredClone(FBOS); currentDayKey=null; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Imported itineraries cleared."; }
   else if(b.id==="copyDebug"){ const ta=$("importDebugText"); ta.select(); navigator.clipboard&&navigator.clipboard.writeText(ta.value).catch(()=>{}); b.textContent="Copied"; }
   else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); render() }
-  else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap}); render() }
+  else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,endTarget:trip.endTarget||""}); render() }
 });
 if(matchMedia("(max-width:640px)").matches) $("libDetails").open=false;
 // Shared parser (same code goes into the page)
@@ -613,7 +629,7 @@ function buildDays(){
 function loadDay(key){
   const days=buildDays(); const d=days.find(x=>x.key===key); if(!d) return;
   const idx=days.indexOf(d); const next=days[idx+1];
-  trip={name:`${d.date} · ${d.tail} · ${d.trips.join("+")}`,start:d.legs[0].from,startFuel:"",burn:trip.burn||700,minLand:trip.minLand||1000,cap:trip.cap||3611,legs:[]};
+  trip={name:`${d.date} · ${d.tail} · ${d.trips.join("+")}`,start:d.legs[0].from,startFuel:"",burn:trip.burn||700,minLand:trip.minLand||1000,cap:trip.cap||3611,endTarget:trip.endTarget||"",legs:[]};
   d.legs.forEach((l,i)=>{ const last=i===d.legs.length-1;
     let ground="quick";
     if(last){ ground= (next&&next.tail===d.tail&&next.legs[0].from===l.to&&l.to!=="VNY")? "overnight":"end"; }
