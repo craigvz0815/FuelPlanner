@@ -116,7 +116,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
   <h1>Clipper Fuel Planner</h1>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v9</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v11</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -142,6 +142,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
   <div class="toolbar">
     <button class="primary" id="importBtn">Import itinerary PDF</button>
     <button id="pasteToggle" class="small" title="Paste itinerary text copied from a PDF">Paste text</button>
+    <button id="daysBtn" class="small" title="Switch between days built from the imported itineraries">Days</button>
     <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
     <button id="autoBtn" title="Set every stop to its waiver minimum, then add any shortfall at the cheapest fuel stop">Auto-plan buys</button>
     <button id="addStop">+ Add stop</button>
@@ -363,6 +364,7 @@ function compute(){
     let check="OK",cls="ok";
     if(trip.startFuel===""||trip.startFuel==null){check="ENTER START FUEL";cls="warn"}
     else if(!leg.to){check="ENTER AIRPORT";cls="warn"}
+    else if(leg.gap&&!hours(leg.block)){check="GAP — ENTER BLOCK";cls="warn"}
     else if(depart>+trip.cap) {check="OVER CAPACITY";cls="bad"}
     else if(land<+trip.minLand){check="LOW FUEL";cls="bad"}
     else if(!isEnd && (f.min||0)>0 && !met){check="FEE NOT WAIVED";cls="warn"}
@@ -404,7 +406,7 @@ function render(){
     const leg=trip.legs[i]; const isEnd=leg.ground==="end";
     const card=document.createElement("div"); card.className="leg"+(isEnd?" end":"");
     const ov= leg.buy!=null && !isEnd ? " (override)" : "";
-    card.innerHTML=`<div class="leg-head"><span class="muted">Leg ${i+1}</span><span class="route">${from} → ${leg.to||"?"}</span>
+    card.innerHTML=`<div class="leg-head"><span class="muted">Leg ${i+1}${leg.gap?" · not on itinerary":""}</span><span class="route">${from} → ${leg.to||"?"}</span>
         <span class="pill ${row.cls}">${row.check}</span><button class="small" data-del="${i}" title="Remove stop">×</button></div>
       <div class="leg-in">
         <label class="f">To<input type="text" id="to${i}" value="${leg.to}" data-i="${i}" data-k="to" autocapitalize="characters" placeholder="ICAO"></label>
@@ -475,8 +477,10 @@ document.addEventListener("click",e=>{
   else if(b.id==="autoBtn") autoPlan();
   else if(b.id==="pasteBtn") pasteFromClipboard();
   else if(b.id==="pasteToggle") showPastePrompt($("pasteBox").hidden);
+  else if(b.id==="daysBtn"){ const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent= buildDays().length? "Days from imported itineraries:" : "No itineraries imported yet."; const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap); }
   else if(b.id==="reloadBtn") location.href=location.pathname+"?r="+Date.now();
-  else if(b.dataset.seg!=null&&pendingSegments){ const ps=pendingSegments; const burn=trip.burn; applyItinerary(ps.it,+b.dataset.seg); pendingSegments=ps; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Loaded segment "+(+b.dataset.seg+1)+": "+segLabel(ps.segs[+b.dataset.seg])+". Enter start fuel, then Auto-plan."; ps.segs.forEach((sg,i)=>{ const bt=document.createElement("button"); bt.className="small"; bt.style.marginLeft="6px"; bt.textContent="Segment "+(i+1)+": "+segLabel(sg); bt.dataset.seg=i; msg.appendChild(bt) }); $("startFuel").focus(); }
+  else if(b.dataset.day){ loadDay(b.dataset.day); render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Loaded "+trip.name+". Enter start fuel, then Auto-plan."; const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap); $("startFuel").focus(); }
+  else if(b.id==="clearPool"){ pool={legs:[],fbo:[]}; savePool(); fbos=structuredClone(FBOS); currentDayKey=null; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Imported itineraries cleared."; }
   else if(b.id==="copyDebug"){ const ta=$("importDebugText"); ta.select(); navigator.clipboard&&navigator.clipboard.writeText(ta.value).catch(()=>{}); b.textContent="Copied"; }
   else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); render() }
   else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap}); render() }
@@ -507,10 +511,12 @@ function parseItinerary(text){
     const d=(mm)=>mm?`${MON[mm[1]]||"01"}/${String(mm[2]).padStart(2,"0")}/${year}`:null;
     if(!det[h.n]) det[h.n]={n:h.n,from:h.from,to:h.to,part:h.part,block:bm?bm[1]:null,depDate:d(dm),depTime:dm?dm[3]:null,arrDate:d(arm),arrTime:arm?arm[3]:null,pax:pm?pm[1]:null}; });
   const ns=[...new Set([...Object.keys(sum),...Object.keys(det)].map(Number))].sort((a,b)=>a-b);
-  ns.forEach(n=>{ let a=sum[n], b=det[n];
-    if(a&&b&&(a.from!==b.from||a.to!==b.to||a.block!==b.block)) a=null;   // summary row got scrambled in extraction — trust the detail block
-    const p=b||a, q=a||b;
-    const leg={n,from:p.from,to:p.to,block:p.block,depDate:q.depDate||p.depDate,depTime:q.depTime||p.depTime,arrDate:q.arrDate||p.arrDate,arrTime:q.arrTime||p.arrTime,pax:p.pax||q.pax,part:(b||{}).part};
+  ns.forEach(n=>{ const a=sum[n], b=det[n];
+    // The leg header ("Leg 1 : VNY SBA") is reliable in every extraction. A summary row is trusted only if it agrees
+    // with that header (phones keep summary rows intact but scatter detail blocks; desktops do the reverse).
+    const sumOk= a && (!b || (a.from===b.from && a.to===b.to));
+    const p= sumOk? a : b;  if(!p) return;
+    const leg={n,from:p.from,to:p.to,block:p.block,depDate:p.depDate,depTime:p.depTime,arrDate:p.arrDate,arrTime:p.arrTime,pax:p.pax||(a||{}).pax||(b||{}).pax,part:(b||{}).part};
     if(leg.from&&leg.to&&leg.block) out.legs.push(leg); });
   const feeRe=/Fees \(([A-Z0-9]{3,4})\): (.*?) \/ Landing fee: \$([\d,]+) \/ Parking fee: \$([\d,]+)(?:, (\d+) nights? waived with (\d+) gals)? \/ Ground handling fee: \$([\d,]+)(?:, waived with (\d+) gals)? \/ Infrastructure fee: \$([\d,]+)(?:, waived with (\d+) gals)?/g;
   while((m=feeRe.exec(t))){ const icao=m[1]; if(out.fees[icao]) continue;
@@ -532,27 +538,63 @@ function feesToFbo(icao,f,fuel,id,asOf){
   if(fuel&&fuel.tiers&&fuel.tiers.length){ e.price=fuel.tiers[0].price; if(fuel.tiers.length>1) e.notes.push(fuel.brand+" tiers: "+fuel.tiers.map(t=>`${t.min}+ $${t.price}`).join(" · ")) }
   e.notes=e.notes.join("; "); return e;
 }
-let pendingSegments=null;
-function splitSegments(legs){ const segs=[]; let cur=[]; legs.forEach((l,i)=>{ if(cur.length&&cur[cur.length-1].to!==l.from){ segs.push(cur); cur=[] } cur.push(l) }); if(cur.length) segs.push(cur); return segs }
-function applyItinerary(it,segIndex){
+// ---- Itinerary pool: legs from every imported itinerary, grouped into days by date + tail number ----
+let pool={legs:[],fbo:[]};
+function loadPool(){ try{ const p=JSON.parse(localStorage.getItem("cfp.pool")); if(p&&Array.isArray(p.legs)) pool=p }catch(e){}
+  (pool.fbo||[]).forEach(e=>{ const i=fbos.findIndex(x=>x.icao===e.icao); if(i>=0) fbos[i]=Object.assign({},fbos[i],e); else fbos.push(e) }); }
+function savePool(){ try{ localStorage.setItem("cfp.pool",JSON.stringify(pool)) }catch(e){} }
+function toMin(t){ const m=/^(\d\d):(\d\d)$/.exec(t||""); return m? +m[1]*60+ +m[2] : 0 }
+function dayKey(l){ return (l.tail||"?")+"|"+(l.depDate||"?") }
+function buildDays(){
+  const groups={};
+  pool.legs.forEach(l=>{ const k=dayKey(l); (groups[k]=groups[k]||[]).push(l) });
+  const days=Object.entries(groups).map(([k,legs])=>{
+    legs.sort((x,y)=>toMin(x.depTime)-toMin(y.depTime));
+    // chain with placeholders for gaps
+    const chain=[]; legs.forEach((l,i)=>{ const prev=chain[chain.length-1]; if(prev&&prev.to!==l.from) chain.push({from:prev.to,to:l.from,block:"",gap:true,tripId:"?"}); chain.push(l) });
+    const trips=[...new Set(legs.map(l=>l.tripId))];
+    return {key:k,tail:legs[0].tail,date:legs[0].depDate,legs:chain,trips,label:`${legs[0].depDate||"?"} · ${legs[0].tail||"?"} · ${chain[0].from}→${chain.map(l=>l.to).join("→")} · ${trips.join("+")}`};
+  });
+  days.sort((x,y)=>(x.date||"").slice(6)+(x.date||"").slice(0,5) < (y.date||"").slice(6)+(y.date||"").slice(0,5) ? -1:1);
+  return days;
+}
+function loadDay(key){
+  const days=buildDays(); const d=days.find(x=>x.key===key); if(!d) return;
+  const idx=days.indexOf(d); const next=days[idx+1];
+  trip={name:`${d.date} · ${d.tail} · ${d.trips.join("+")}`,start:d.legs[0].from,startFuel:"",burn:trip.burn||700,minLand:trip.minLand||1000,cap:trip.cap||3611,legs:[]};
+  d.legs.forEach((l,i)=>{ const last=i===d.legs.length-1;
+    let ground="quick";
+    if(last){ ground= (next&&next.tail===d.tail&&next.legs[0].from===l.to&&l.to!=="VNY")? "overnight":"end"; }
+    trip.legs.push({to:l.to,block:l.block||"",ground,buy:null,gap:!!l.gap}); });
+  currentDayKey=key;
+}
+let currentDayKey=null;
+function dayButtons(container){
+  const days=buildDays(); if(!days.length) return;
+  days.forEach(d=>{ const bt=document.createElement("button"); bt.className="small"+(d.key===currentDayKey?" primary":""); bt.style.margin="4px 6px 0 0"; bt.textContent=d.label; bt.dataset.day=d.key; container.appendChild(bt) });
+  const cl=document.createElement("button"); cl.className="small"; cl.style.margin="4px 0 0 0"; cl.textContent="Clear itineraries"; cl.id="clearPool"; container.appendChild(cl);
+}
+function applyItinerary(it){
   if(!it.legs.length) throw new Error("No legs found. Is this a Clipper crew or passenger itinerary?");
-  const segs=splitSegments(it.legs); pendingSegments= segs.length>1? {it,segs} : null;
-  const legs=segs[segIndex||0];
-  trip={name:`${it.id||"Trip"} · ${legs[0].depDate||""}${it.aircraft?" · "+it.aircraft:""}`,start:legs[0].from,startFuel:"",burn:trip.burn||700,minLand:trip.minLand||1000,cap:trip.cap||3611,legs:[]};
-  legs.forEach((l,i)=>{ const next=legs[i+1];
-    const ground= !next? "end" : ((next.depDate&&l.arrDate&&next.depDate!==l.arrDate)? "overnight":"quick");
-    trip.legs.push({to:l.to,block:l.block,ground,buy:null}); });
+  // merge legs into the pool (replace any earlier copy of the same trip)
+  pool.legs=pool.legs.filter(l=>l.tripId!==it.id);
+  it.legs.forEach(l=>pool.legs.push({tripId:it.id||"?",tail:it.aircraft||"?",n:l.n,from:l.from,to:l.to,block:l.block,depDate:l.depDate,depTime:l.depTime,arrDate:l.arrDate,arrTime:l.arrTime}));
+  // merge fees
   const changes=[];
   Object.entries(it.fees).forEach(([icao,f])=>{
     const e=feesToFbo(icao,f,it.fuel[icao],it.id,fmtDate(it.legs[0].depDate||"01/01/"+new Date().getFullYear()));
     const idx=fbos.findIndex(x=>x.icao===icao); const old=idx>=0?fbos[idx]:null;
     if(!old) changes.push(`${icao} new`);
-    else if(old.min!==e.min||old.waive!==e.waive||old.landing!==e.landing||old.infra!==e.infra||old.parking!==e.parking) changes.push(`${icao} changed (was ${old.min} gal / $${old.waive})`);
+    else if(!old.fromPdf&&(old.min!==e.min||old.waive!==e.waive||old.landing!==e.landing||old.infra!==e.infra||old.parking!==e.parking)) changes.push(`${icao} changed (was ${old.min} gal / $${old.waive})`);
     if(idx>=0) fbos[idx]=Object.assign({},old,e); else fbos.push(e);
+    pool.fbo=(pool.fbo||[]).filter(x=>x.icao!==icao); pool.fbo.push(e);
   });
+  savePool();
+  // load the day this itinerary starts on
+  const first=it.legs[0]; const key=(it.aircraft||"?")+"|"+(first.depDate||"?");
+  loadDay(key);
   return changes;
 }
-function segLabel(seg){ return seg[0].from+"→"+seg.map(l=>l.to).join("→")+(seg[0].depDate?" ("+seg[0].depDate.slice(0,5)+")":"") }
 async function importPdf(file){
   const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Reading "+file.name+"…";
   try{
@@ -571,11 +613,10 @@ async function importPdf(file){
 function importText(text,label){
   const msg=$("importMsg"); msg.hidden=false; msg.className=""; const dbg=$("importDebug"); dbg.hidden=true;
   try{
-    const it=parseItinerary(text); const changes=applyItinerary(it,0); render();
-    const feeApts=Object.keys(it.fees);
-    msg.textContent=`Imported ${it.id||label}: ${it.legs.length} legs, fees for ${feeApts.length?feeApts.join(", "):"no airports"}.`+(changes.length?` Library differences: ${changes.join("; ")} — send this itinerary to Craig to update the shared list.`:"")+" Enter start fuel, then Auto-plan.";
-    if(pendingSegments){ const {segs}=pendingSegments; msg.textContent+=` This itinerary has ${segs.length} separate segments; showing segment 1.`;
-      segs.forEach((sg,i)=>{ const bt=document.createElement("button"); bt.className="small"; bt.style.marginLeft="6px"; bt.textContent="Segment "+(i+1)+": "+segLabel(sg); bt.dataset.seg=i; msg.appendChild(bt) }); }
+    const it=parseItinerary(text); const changes=applyItinerary(it); render();
+    const feeApts=Object.keys(it.fees); const days=buildDays();
+    msg.textContent=`Imported ${it.id||label}: ${it.legs.length} legs, fees for ${feeApts.length?feeApts.join(", "):"no airports"}.`+(changes.length?` Library differences: ${changes.join("; ")} — send this itinerary to Craig to update the shared list.`:"")+(days.length>1?` ${days.length} days on file — pick one below.`:"")+" Enter start fuel, then Auto-plan.";
+    const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap);
     $("startFuel").focus();
   }catch(e){ msg.className="err"; msg.textContent="Import failed: "+(e.message||e)+" — the extracted text is shown below; copy it and send it to Craig.";
     dbg.hidden=false; $("importDebugText").value=text.slice(0,20000); }
@@ -614,7 +655,7 @@ document.getElementById("importBtn").addEventListener("click",()=>$("pdfFile").c
 document.getElementById("pasteArea").addEventListener("paste",e=>{ const t=(e.clipboardData||window.clipboardData).getData("text"); if(t&&t.trim()){ e.preventDefault(); showPastePrompt(false); importText(t,"pasted itinerary"); } });
 document.getElementById("pasteArea").addEventListener("input",e=>{ const t=e.target.value; if(t&&/Leg/.test(t)){ showPastePrompt(false); importText(t,"pasted itinerary"); e.target.value=""; } });
 document.getElementById("pdfFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importPdf(f); e.target.value=""; });
-load(); render(); handleShared(); window.addEventListener("hashchange",handleShared); window.addEventListener("pageshow",e=>{ if(/^#(itin|paste)/.test(location.hash)) handleShared(); });
+load(); loadPool(); render(); handleShared(); window.addEventListener("hashchange",handleShared); window.addEventListener("pageshow",e=>{ if(/^#(itin|paste)/.test(location.hash)) handleShared(); });
 </script>
 
 </body>
