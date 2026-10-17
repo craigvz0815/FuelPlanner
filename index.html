@@ -39,7 +39,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px
 .wrap{max-width:1100px;margin:0 auto;display:grid;gap:20px}
 h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
 h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
-header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;position:relative}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;position:relative}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:44px;height:44px;border-radius:9px;flex:none}
 header p{margin:0;color:var(--muted)}
 .panel{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px}
 .settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
@@ -75,6 +77,13 @@ tr.end td{color:var(--muted)}
 details summary{cursor:pointer;color:var(--muted);font-size:13px}
 
 .legs{display:grid;gap:10px}
+table.plan{min-width:0;width:100%}
+table.plan td,table.plan th{padding:8px 6px;white-space:nowrap}
+table.plan td.stop{font-family:var(--mono);font-weight:500;font-size:15px}
+table.plan td.buy{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--accent)}
+table.plan tr.nobuy td{color:var(--muted)}
+.planfoot{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.planfoot span small{display:block;font-family:var(--sans);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .step{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 8px;font-size:14px;font-weight:500;border-radius:6px}
 .step b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--fg);color:var(--panel);font-size:12px}
@@ -118,10 +127,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
 
 <div class="wrap">
 <header>
-  <h1>Clipper Fuel Planner</h1>
+  <div class="brand"><img src="icon-192.png" alt="Clipper Aviation" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v13</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v18</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -142,6 +151,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
   </div>
 </section>
 
+<section class="panel" id="planPanel" hidden>
+  <h2>Fuel plan</h2>
+  <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Waives</th><th class="num">Land</th></tr></thead><tbody></tbody></table></div>
+  <div class="planfoot" id="planFoot"></div>
+</section>
+
 <section class="panel">
   <h2>Legs</h2>
   <div class="steps">
@@ -157,12 +172,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
     <span class="spacer"></span>
     <button id="resetTrip" class="small">Load example</button>
   </div>
-  <div id="pasteBox" hidden style="margin:0 0 10px;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--calc)">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="primary" id="pasteBtn">Paste itinerary from clipboard</button>
-      <span class="muted">or paste into the box below</span>
+  <div id="pasteBox" hidden style="margin:0 0 10px">
+    <button class="primary" id="pasteBtn" style="width:100%;padding:18px 12px;font-size:18px;font-weight:600;letter-spacing:.02em;border-radius:8px">ADD ITINERARY</button>
+    <div class="muted" style="margin-top:6px;text-align:center">Loads the itinerary you just shared</div>
+    <div id="pasteFallback" hidden>
+      <textarea id="pasteArea" placeholder="Tap here and choose Paste…" style="width:100%;height:70px;margin-top:8px;font:13px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px"></textarea>
     </div>
-    <textarea id="pasteArea" placeholder="Paste itinerary text here…" style="width:100%;height:70px;margin-top:8px;font:13px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px"></textarea>
   </div>
   <div id="importMsg" class="muted" hidden></div>
   <div id="importDebug" hidden><textarea id="importDebugText" readonly style="width:100%;height:160px;font:12px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px"></textarea>
@@ -407,7 +422,7 @@ function autoPlan(){
 function render(){
   $("tripName").value=trip.name; $("startApt").value=trip.start; $("startFuel").value=trip.startFuel;
   $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap;
-  const r=compute(); const list=$("legList"); list.innerHTML="";
+  const r=compute(); const list=$("legList"); list.innerHTML=""; const noFuel=(trip.startFuel===""||trip.startFuel==null);
   let from=trip.start;
   r.rows.forEach((row,i)=>{
     const leg=trip.legs[i]; const isEnd=leg.ground==="end";
@@ -425,8 +440,8 @@ function render(){
         <label class="f">Buy gal${ov}${isEnd?'<input type="text" value="–" disabled>':`<input type="number" id="buy${i}" value="${row.buy}" data-i="${i}" data-k="buy" step="5" min="0" inputmode="numeric">`}</label>
       </div>
       <div class="leg-out">
-        <div><small>Depart</small><b>${fmt(row.depart)}</b></div>
-        <div><small>Land</small><b>${fmt(row.land)}</b></div>
+        <div><small>Depart</small><b>${noFuel?"–":fmt(row.depart)}</b></div>
+        <div><small>Land</small><b>${noFuel?"–":fmt(row.land)}</b></div>
         <div><small>Buy lbs</small><b>${isEnd?"–":fmt(row.lbs)}</b></div>
         <div><small>Min gal</small><b>${isEnd?"–":(row.min||"–")}</b></div>
         <div><small>Waived</small><b>${isEnd?"–":(row.waived?money(row.waived):"$0")}</b></div>
@@ -434,6 +449,19 @@ function render(){
       </div>`;
     list.appendChild(card); from=leg.to;
   });
+  // Fuel plan summary
+  const planOn=!noFuel && trip.legs.some(l=>l.to);
+  $("planPanel").hidden=!planOn;
+  if(planOn){ const tb=$("planTable").querySelector("tbody"); tb.innerHTML="";
+    r.rows.forEach((row,i)=>{ const leg=trip.legs[i]; if(!leg.to) return; const isEnd=leg.ground==="end";
+      const tr=document.createElement("tr"); if(isEnd||row.buy<=0) tr.className="nobuy";
+      tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400">end</span>':""}</td>
+        <td class="num buy">${isEnd?"–":(row.buy>0?`${row.buy} gal<small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(row.lbs)} lb</small>`:"no fuel")}</td>
+        <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
+        <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>`;
+      tb.appendChild(tr); });
+    $("planFoot").innerHTML=`<span><b>${fmt(r.tot.gal)} gal</b><small>total to buy</small></span><span><b>${money(r.tot.waived)}</b><small>fees waived</small></span><span><b>${money(r.tot.owed)}</b><small>still owed</small></span><span><b>${fmt(r.final)} lb</b><small>at end</small></span>`;
+  }
   const worst=r.rows.find(x=>x.cls==="bad")||r.rows.find(x=>x.cls==="warn");
   $("bFinal").textContent=(trip.startFuel===""||trip.startFuel==null)?"–":fmt(r.final); $("bGal").textContent=fmt(r.tot.gal); $("bWaived").textContent=money(r.tot.waived);
   $("bCheck").textContent= worst? worst.check : "OK";
@@ -483,8 +511,12 @@ document.addEventListener("click",e=>{
   else if(b.id==="addStop"){ const endIdx=trip.legs.findIndex(l=>l.ground==="end"); const nl={to:"",block:"1:00",ground:"quick",buy:null}; if(endIdx>=0) trip.legs.splice(endIdx,0,nl); else trip.legs.push(nl); render() }
   else if(b.id==="autoBtn") autoPlan();
   else if(b.id==="pasteBtn") pasteFromClipboard();
-  else if(b.id==="pasteToggle") showPastePrompt($("pasteBox").hidden);
+  else if(b.id==="pasteToggle") showPastePrompt($("pasteBox").hidden,true);
   else if(b.id==="daysBtn"){ const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent= buildDays().length? "Days from imported itineraries:" : "No itineraries imported yet."; const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap); }
+  else if(b.dataset.fetch){ const url=b.dataset.fetch; b.textContent="Fetching…"; b.disabled=true;
+    (async()=>{ try{ const r=await fetch(url,{credentials:"include",mode:"cors"}); if(!r.ok) throw new Error("HTTP "+r.status); const blob=await r.blob();
+        if(!/pdf/i.test(blob.type)&&blob.size<2000) throw new Error("not a PDF ("+blob.type+")"); importPdf(new File([blob],"itinerary.pdf",{type:"application/pdf"})); }
+      catch(e){ b.textContent="Fetch blocked: "+(e.message||e); } })(); }
   else if(b.id==="reloadBtn") location.href=location.pathname+"?r="+Date.now();
   else if(b.dataset.day){ loadDay(b.dataset.day); render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Loaded "+trip.name+". Enter start fuel, then Auto-plan."; const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap); $("startFuel").focus(); }
   else if(b.id==="clearPool"){ pool={legs:[],fbo:[]}; savePool(); fbos=structuredClone(FBOS); currentDayKey=null; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Imported itineraries cleared."; }
@@ -621,7 +653,8 @@ function importText(text,label){
   const msg=$("importMsg"); msg.hidden=false; msg.className=""; const dbg=$("importDebug"); dbg.hidden=true;
   const lm=/^\s*(https?:\/\/\S+)\s*$/.exec(text||"");
   if(lm){ msg.className="err"; msg.innerHTML=""; msg.append("That was a link to the itinerary, not the itinerary itself. Open it, then share the PDF from the viewer to Fuel Planner: ");
-    const a=document.createElement("a"); a.href=lm[1]; a.textContent=lm[1].replace(/^https?:\/\//,""); a.target="_blank"; a.rel="noopener"; a.style.wordBreak="break-all"; msg.appendChild(a); return; }
+    const a=document.createElement("a"); a.href=lm[1]; a.textContent=lm[1].replace(/^https?:\/\//,""); a.target="_blank"; a.rel="noopener"; a.style.wordBreak="break-all"; msg.appendChild(a);
+    const fb=document.createElement("button"); fb.className="small"; fb.style.marginLeft="8px"; fb.textContent="Fetch PDF from link"; fb.dataset.fetch=lm[1]; msg.appendChild(fb); return; }
   try{
     const it=parseItinerary(text); const changes=applyItinerary(it); render();
     const feeApts=Object.keys(it.fees); const days=buildDays();
@@ -633,11 +666,12 @@ function importText(text,label){
 }
 // Android share sheet → service worker → cache → here
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
-function showPastePrompt(on){ const b=$("pasteBox"); b.hidden=!on; if(on){ b.scrollIntoView({block:"center"}); } }
+function showPastePrompt(on,fallback){ const b=$("pasteBox"); b.hidden=!on; $("pasteFallback").hidden=!fallback; if(on){ b.scrollIntoView({block:"center"}); } }
 async function pasteFromClipboard(){
   const msg=$("importMsg");
   try{ const t=await navigator.clipboard.readText(); if(t&&t.trim()){ showPastePrompt(false); importText(t,"pasted itinerary"); return } }catch(e){}
-  msg.hidden=false; msg.className="err"; msg.textContent="Couldn't read the clipboard. Tap in the box below, choose Paste, and the import will run.";
+  showPastePrompt(true,true);
+  msg.hidden=false; msg.className="err"; msg.textContent="Couldn't read the clipboard. Tap in the box above, choose Paste, and the import will run.";
   $("pasteArea").focus();
 }
 async function handleShared(){
