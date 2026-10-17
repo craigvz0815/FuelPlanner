@@ -116,7 +116,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
   <h1>Clipper Fuel Planner</h1>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v7</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v8</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -465,7 +465,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.del!=null){ trip.legs.splice(+b.dataset.del,1); render() }
   else if(b.id==="addStop"){ const endIdx=trip.legs.findIndex(l=>l.ground==="end"); const nl={to:"",block:"1:00",ground:"quick",buy:null}; if(endIdx>=0) trip.legs.splice(endIdx,0,nl); else trip.legs.push(nl); render() }
   else if(b.id==="autoBtn") autoPlan();
-  else if(b.id==="reloadBtn") location.reload();
+  else if(b.id==="reloadBtn") location.href=location.pathname+"?r="+Date.now();
   else if(b.dataset.seg!=null&&pendingSegments){ const ps=pendingSegments; const burn=trip.burn; applyItinerary(ps.it,+b.dataset.seg); pendingSegments=ps; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Loaded segment "+(+b.dataset.seg+1)+": "+segLabel(ps.segs[+b.dataset.seg])+". Enter start fuel, then Auto-plan."; ps.segs.forEach((sg,i)=>{ const bt=document.createElement("button"); bt.className="small"; bt.style.marginLeft="6px"; bt.textContent="Segment "+(i+1)+": "+segLabel(sg); bt.dataset.seg=i; msg.appendChild(bt) }); $("startFuel").focus(); }
   else if(b.id==="copyDebug"){ const ta=$("importDebugText"); ta.select(); navigator.clipboard&&navigator.clipboard.writeText(ta.value).catch(()=>{}); b.textContent="Copied"; }
   else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); render() }
@@ -573,7 +573,8 @@ function importText(text,label){
 // Android share sheet → service worker → cache → here
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
 async function handleShared(){
-  if(location.hash&&!location.hash.startsWith("#itin=")){ const msg=$("importMsg"); msg.hidden=false; msg.className="err"; msg.textContent="Page opened with an unexpected link fragment: "+location.hash.slice(0,40)+"…"; }
+  if(location.hash&&!location.hash.startsWith("#itin=")){ const msg=$("importMsg"); msg.hidden=false; msg.className="err"; msg.textContent="Diagnostic — hash length "+location.hash.length+", full URL length "+location.href.length+", hash starts: ["+location.hash.slice(0,80)+"]"; }
+  if(location.search&&/itin/.test(location.search)){ const msg=$("importMsg"); msg.hidden=false; msg.className="err"; msg.textContent="Diagnostic — itinerary arrived in the query string, length "+location.search.length; }
   if(new URLSearchParams(location.search).get("shared")==="1"){
     history.replaceState(null,"",location.pathname);
     try{ const c=await caches.open("shared"); const r=await c.match("shared-pdf");
