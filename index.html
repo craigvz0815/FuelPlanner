@@ -116,7 +116,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
   <h1>Clipper Fuel Planner</h1>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v8</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v9</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -141,12 +141,20 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
   <h2>Legs</h2>
   <div class="toolbar">
     <button class="primary" id="importBtn">Import itinerary PDF</button>
+    <button id="pasteToggle" class="small" title="Paste itinerary text copied from a PDF">Paste text</button>
     <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
     <button id="autoBtn" title="Set every stop to its waiver minimum, then add any shortfall at the cheapest fuel stop">Auto-plan buys</button>
     <button id="addStop">+ Add stop</button>
     <span class="spacer"></span>
     <button id="resetTrip" class="small">Load example</button>
     <button id="clearTrip" class="small">New trip</button>
+  </div>
+  <div id="pasteBox" hidden style="margin:0 0 10px;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--calc)">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="primary" id="pasteBtn">Paste itinerary from clipboard</button>
+      <span class="muted">or paste into the box below</span>
+    </div>
+    <textarea id="pasteArea" placeholder="Paste itinerary text here…" style="width:100%;height:70px;margin-top:8px;font:13px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px"></textarea>
   </div>
   <div id="importMsg" class="muted" hidden></div>
   <div id="importDebug" hidden><textarea id="importDebugText" readonly style="width:100%;height:160px;font:12px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px"></textarea>
@@ -465,6 +473,8 @@ document.addEventListener("click",e=>{
   if(b.dataset.del!=null){ trip.legs.splice(+b.dataset.del,1); render() }
   else if(b.id==="addStop"){ const endIdx=trip.legs.findIndex(l=>l.ground==="end"); const nl={to:"",block:"1:00",ground:"quick",buy:null}; if(endIdx>=0) trip.legs.splice(endIdx,0,nl); else trip.legs.push(nl); render() }
   else if(b.id==="autoBtn") autoPlan();
+  else if(b.id==="pasteBtn") pasteFromClipboard();
+  else if(b.id==="pasteToggle") showPastePrompt($("pasteBox").hidden);
   else if(b.id==="reloadBtn") location.href=location.pathname+"?r="+Date.now();
   else if(b.dataset.seg!=null&&pendingSegments){ const ps=pendingSegments; const burn=trip.burn; applyItinerary(ps.it,+b.dataset.seg); pendingSegments=ps; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Loaded segment "+(+b.dataset.seg+1)+": "+segLabel(ps.segs[+b.dataset.seg])+". Enter start fuel, then Auto-plan."; ps.segs.forEach((sg,i)=>{ const bt=document.createElement("button"); bt.className="small"; bt.style.marginLeft="6px"; bt.textContent="Segment "+(i+1)+": "+segLabel(sg); bt.dataset.seg=i; msg.appendChild(bt) }); $("startFuel").focus(); }
   else if(b.id==="copyDebug"){ const ta=$("importDebugText"); ta.select(); navigator.clipboard&&navigator.clipboard.writeText(ta.value).catch(()=>{}); b.textContent="Copied"; }
@@ -572,27 +582,39 @@ function importText(text,label){
 }
 // Android share sheet → service worker → cache → here
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+function showPastePrompt(on){ const b=$("pasteBox"); b.hidden=!on; if(on){ b.scrollIntoView({block:"center"}); } }
+async function pasteFromClipboard(){
+  const msg=$("importMsg");
+  try{ const t=await navigator.clipboard.readText(); if(t&&t.trim()){ showPastePrompt(false); importText(t,"pasted itinerary"); return } }catch(e){}
+  msg.hidden=false; msg.className="err"; msg.textContent="Couldn't read the clipboard. Tap in the box below, choose Paste, and the import will run.";
+  $("pasteArea").focus();
+}
 async function handleShared(){
-  if(location.hash&&!location.hash.startsWith("#itin=")){ const msg=$("importMsg"); msg.hidden=false; msg.className="err"; msg.textContent="Diagnostic — hash length "+location.hash.length+", full URL length "+location.href.length+", hash starts: ["+location.hash.slice(0,80)+"]"; }
-  if(location.search&&/itin/.test(location.search)){ const msg=$("importMsg"); msg.hidden=false; msg.className="err"; msg.textContent="Diagnostic — itinerary arrived in the query string, length "+location.search.length; }
   if(new URLSearchParams(location.search).get("shared")==="1"){
     history.replaceState(null,"",location.pathname);
     try{ const c=await caches.open("shared"); const r=await c.match("shared-pdf");
       if(r){ const blob=await r.blob(); const name=r.headers.get("X-Name")||"itinerary.pdf"; await c.delete("shared-pdf"); importPdf(new File([blob],name,{type:"application/pdf"})); } }catch(e){}
   }
-  // iPhone Shortcut → opens the page with the itinerary text in the URL fragment (#itin=<base64 text>)
-  const h=location.hash; if(h.startsWith("#itin=")){
+  // iPhone Shortcut → page opened with the itinerary text in the link (#itin=… / #itin.… / ?itin=…)
+  let h=location.hash, payload=null;
+  const hm=/^#itin[=.:\-](.+)$/.exec(h); if(hm) payload=hm[1];
+  const qm=/[?&]itin=([^&]+)/.exec(location.search); if(!payload&&qm) payload=qm[1];
+  if(payload){
     history.replaceState(null,"",location.pathname);
-    try{ const raw=decodeURIComponent(h.slice(6).replace(/\+/g,"%2B")); let text;
+    try{ const raw=decodeURIComponent(payload.replace(/\+/g,"%2B")); let text;
       try{ text=new TextDecoder().decode(Uint8Array.from(atob(raw.replace(/\s/g,"")),c=>c.charCodeAt(0))); }catch(e){ text=null }
-      if(!text||!/Leg|Itinerary/i.test(text)) text=raw;   // not base64 — treat as plain text
+      if(!text||!/Leg|Itinerary/i.test(text)) text=raw;
       importText(text,"shared itinerary"); }
     catch(e){ const msg=$("importMsg"); msg.hidden=false; msg.className="err"; msg.textContent="Could not read the shared itinerary text."; }
   }
+  // iPhone Shortcut (clipboard method) → page opened with #paste: offer a one-tap paste
+  if(h==="#paste"||h==="#itin"||h==="#itin="){ history.replaceState(null,"",location.pathname); showPastePrompt(true); }
 }
 document.getElementById("importBtn").addEventListener("click",()=>$("pdfFile").click());
+document.getElementById("pasteArea").addEventListener("paste",e=>{ const t=(e.clipboardData||window.clipboardData).getData("text"); if(t&&t.trim()){ e.preventDefault(); showPastePrompt(false); importText(t,"pasted itinerary"); } });
+document.getElementById("pasteArea").addEventListener("input",e=>{ const t=e.target.value; if(t&&/Leg/.test(t)){ showPastePrompt(false); importText(t,"pasted itinerary"); e.target.value=""; } });
 document.getElementById("pdfFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importPdf(f); e.target.value=""; });
-load(); render(); handleShared(); window.addEventListener("hashchange",handleShared); window.addEventListener("pageshow",e=>{ if(location.hash.startsWith("#itin=")) handleShared(); });
+load(); render(); handleShared(); window.addEventListener("hashchange",handleShared); window.addEventListener("pageshow",e=>{ if(/^#(itin|paste)/.test(location.hash)) handleShared(); });
 </script>
 
 </body>
