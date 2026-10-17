@@ -580,7 +580,10 @@ async function handleShared(){
   // iPhone Shortcut → opens the page with the itinerary text in the URL fragment (#itin=<base64 text>)
   const h=location.hash; if(h.startsWith("#itin=")){
     history.replaceState(null,"",location.pathname);
-    try{ const b64=decodeURIComponent(h.slice(6)); const text=new TextDecoder().decode(Uint8Array.from(atob(b64),c=>c.charCodeAt(0))); importText(text,"shared itinerary"); }
+    try{ const raw=decodeURIComponent(h.slice(6).replace(/\+/g,"%2B")); let text;
+      try{ text=new TextDecoder().decode(Uint8Array.from(atob(raw.replace(/\s/g,"")),c=>c.charCodeAt(0))); }catch(e){ text=null }
+      if(!text||!/Leg|Itinerary/i.test(text)) text=raw;   // not base64 — treat as plain text
+      importText(text,"shared itinerary"); }
     catch(e){ const msg=$("importMsg"); msg.hidden=false; msg.className="err"; msg.textContent="Could not read the shared itinerary text."; }
   }
 }
