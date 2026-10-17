@@ -130,7 +130,7 @@ table.plan tr.nobuy td{color:var(--muted)}
   <div class="brand"><img src="icon-192.png" alt="Clipper Aviation" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v18</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v19</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -201,7 +201,7 @@ table.plan tr.nobuy td{color:var(--muted)}
 
 <section class="panel">
   <details id="libDetails" open>
-  <summary>FBO library · updated 2026-10-19</summary>
+  <summary>FBO library · updated 2026-10-22</summary>
   <div class="tablewrap">
   <table id="fbos">
     <thead><tr>
@@ -255,7 +255,7 @@ const FBOS=[
   "notes": "PPR required for charter; 150 gal ramp waiver confirmed for <20k lb (eff. 5/1/26)",
   "parking": 130,
   "price": 10.2,
-  "source": "7HICKX",
+  "source": "TXHDH0",
   "waive": 194
  },
  {
@@ -285,16 +285,16 @@ const FBOS=[
   "waive": 600
  },
  {
-  "asOf": "2026-10-15",
+  "asOf": "2026-10-19",
   "fbo": "Signature Flight Support",
   "icao": "SBA",
   "infra": 36,
   "landing": 69,
   "min": 140,
-  "notes": "Landing fee is airport ($4.62/1,000 lb); verify handling min",
+  "notes": "Landing fee is airport ($4.62/1,000 lb); verify handling min. Signature tiers: 301+ $8.78 \u00b7 1201+ $8.67",
   "parking": 180,
-  "price": 8.75,
-  "source": "OVA4BC",
+  "price": 8.89,
+  "source": "TXHDH0",
   "waive": 360
  },
  {
@@ -346,6 +346,19 @@ const FBOS=[
   "parking": 0,
   "source": "",
   "waive": 0
+ },
+ {
+  "icao": "APC",
+  "fbo": "Skyservice",
+  "min": 100,
+  "waive": 200,
+  "landing": 47,
+  "infra": 0,
+  "parking": 200,
+  "price": 10.23,
+  "notes": "Titan tiers: 201+ $10.13 \u00b7 401+ $9.93 \u00b7 601+ $9.63 \u00b7 801+ $9.28 \u00b7 1001+ $9.18",
+  "source": "TXHDH0",
+  "asOf": "2026-10-22"
  }
 ];
 const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,burn:700,minLand:1000,cap:3611,
