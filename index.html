@@ -121,7 +121,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
   <h1>Clipper Fuel Planner</h1>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v12</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v13</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -619,6 +619,9 @@ async function importPdf(file){
 }
 function importText(text,label){
   const msg=$("importMsg"); msg.hidden=false; msg.className=""; const dbg=$("importDebug"); dbg.hidden=true;
+  const lm=/^\s*(https?:\/\/\S+)\s*$/.exec(text||"");
+  if(lm){ msg.className="err"; msg.innerHTML=""; msg.append("That was a link to the itinerary, not the itinerary itself. Open it, then share the PDF from the viewer to Fuel Planner: ");
+    const a=document.createElement("a"); a.href=lm[1]; a.textContent=lm[1].replace(/^https?:\/\//,""); a.target="_blank"; a.rel="noopener"; a.style.wordBreak="break-all"; msg.appendChild(a); return; }
   try{
     const it=parseItinerary(text); const changes=applyItinerary(it); render();
     const feeApts=Object.keys(it.fees); const days=buildDays();
