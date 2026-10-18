@@ -137,7 +137,7 @@ table.plan .cheap{display:inline-block;margin-top:3px;margin-left:4px;font-famil
   <div class="brand"><img src="icon-192.png" alt="Clipper Aviation" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v29</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v30</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -163,7 +163,7 @@ table.plan .cheap{display:inline-block;margin-top:3px;margin-left:4px;font-famil
 <section class="panel" id="planPanel" hidden>
   <h2>Fuel plan</h2>
   <div class="startline" id="startLine"></div>
-  <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Waives</th><th class="num">Land</th></tr></thead><tbody></tbody></table></div>
+  <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Waives</th><th class="num">Land</th><th class="num">T/O</th></tr></thead><tbody></tbody></table></div>
   <div class="planfoot" id="planFoot"></div>
   <div class="planmode">
     <span class="muted" style="font-family:var(--sans);font-size:12px">Extra fuel goes to:</span>
@@ -516,14 +516,15 @@ function render(){
     { const sb=+trip.startBuy||0, sf=fboFor(trip.start)||{}; const tr=document.createElement("tr"); if(sb<=0) tr.className="nobuy";
       tr.innerHTML=`<td class="stop">${trip.start||"—"}<span class="minref" style="color:var(--muted);background:var(--calc)">start</span></td>
         <td class="num buy">${sb>0?`${sb} gal<small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(sb*LBS)} lb</small>`:"no fuel"}</td>
-        <td class="num">–</td><td class="num">${fmt((+trip.startFuel||0)+sb*LBS)}<small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">depart</small></td>`;
+        <td class="num">–</td><td class="num muted">–</td><td class="num">${fmt((+trip.startFuel||0)+sb*LBS)}</td>`;
       tb.appendChild(tr); }
     r.rows.forEach((row,i)=>{ const leg=trip.legs[i]; if(!leg.to) return; const isEnd=leg.ground==="end";
       const tr=document.createElement("tr"); if(isEnd||row.buy<=0) tr.className="nobuy";
       tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>`}</td>
         <td class="num buy">${isEnd?"–":(row.buy>0?`${row.buy} gal<small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(row.lbs)} lb</small>`:"no fuel")}</td>
         <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
-        <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>`;
+        <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>
+        <td class="num">${isEnd?"–":fmt(row.land+row.lbs)}</td>`;
       tb.appendChild(tr); });
     $("modeCheap").classList.toggle("primary",trip.extraMode!=="min"); $("modeMin").classList.toggle("primary",trip.extraMode==="min");
     const priced=[{to:trip.start,f:fboFor(trip.start)||{}},...trip.legs.filter(l=>l.to&&l.ground!=="end").map(l=>({to:l.to,f:fboFor(l.to)||{}}))].filter(x=>x.to&&x.f.price).sort((a,b)=>a.f.price-b.f.price);
