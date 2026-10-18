@@ -132,7 +132,7 @@ table.plan td.stop .minref{display:block;width:max-content}
   <div class="brand"><img src="icon-192.png" alt="Clipper Aviation" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v25</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v26</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -415,6 +415,8 @@ function compute(){
 }
 
 let lastPlanNote="";
+// Re-plan automatically whenever inputs change, unless the crew has hand-edited a Buy amount (then their numbers stand until Auto-plan is pressed).
+function plan(){ if(trip.startFuel===""||trip.startFuel==null||trip.manual||!trip.legs.some(l=>l.to)) render(); else autoPlan() }
 function autoPlan(){
   lastPlanNote="";
   trip.legs.forEach(l=>{ if(l.ground!=="end") l.buy=null });          // 1. waiver minimums everywhere
@@ -534,20 +536,20 @@ function renderFbos(){
 document.addEventListener("input",e=>{
   const t=e.target; if(!t.dataset) return;
   if(t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; const k=t.dataset.k;
-    if(k==="buy"){ l.buy= t.value===""? null : +t.value }
+    if(k==="buy"){ l.buy= t.value===""? null : +t.value; trip.manual=true }
     else if(k==="to"){ l.to=t.value.toUpperCase() }
     else l[k]=t.value;
     if(k==="ground"&&t.value==="end") l.buy=null;
-    render(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); el.setSelectionRange&&el.value.length&&el.setSelectionRange(el.value.length,el.value.length)} }
+    plan(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); el.setSelectionRange&&el.value.length&&el.setSelectionRange(el.value.length,el.value.length)} }
   } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",endTarget:"endTarget"};
-    if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; render(); $(keep).focus() } }
+    if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; plan(); $(keep).focus() } }
 });
 document.addEventListener("focusout",e=>{ const t=e.target; if(t.dataset&&t.dataset.k==="block"&&t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; if(l.block&&hours(l.block)>0){ l.block=blockFmt(hours(l.block)); render() } } });
 document.addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
   if(b.dataset.del!=null){ trip.legs.splice(+b.dataset.del,1); render() }
   else if(b.id==="addStop"){ const endIdx=trip.legs.findIndex(l=>l.ground==="end"); const nl={to:"",block:"1:00",ground:"quick",buy:null}; if(endIdx>=0) trip.legs.splice(endIdx,0,nl); else trip.legs.push(nl); render() }
-  else if(b.id==="autoBtn") autoPlan();
+  else if(b.id==="autoBtn"){ trip.manual=false; autoPlan() }
   else if(b.id==="pasteBtn") pasteFromClipboard();
   else if(b.id==="pasteToggle") showPastePrompt($("pasteBox").hidden,true);
   else if(b.id==="daysBtn"){ const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent= buildDays().length? "Days from imported itineraries:" : "No itineraries imported yet."; const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap); }
