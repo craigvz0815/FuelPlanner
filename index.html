@@ -79,10 +79,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px}
 .legs{display:grid;gap:10px}
 table.plan{min-width:0;width:100%}
 table.plan td,table.plan th{padding:8px 6px;white-space:nowrap}
-table.plan td.stop{font-family:var(--mono);font-weight:500;font-size:15px}
+table.plan td.stop{font-family:var(--mono);font-weight:600;font-size:18px}
 table.plan td.buy{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--accent)}
 table.plan tr.nobuy td{color:var(--muted)}
-table.plan .minref{display:inline-block;margin-left:6px;font-family:var(--sans);font-weight:600;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:var(--warn-bg);padding:1px 5px;border-radius:4px;vertical-align:2px}
+table.plan .minref{display:inline-block;margin-left:8px;font-family:var(--sans);font-weight:600;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:var(--warn-bg);padding:1px 5px;border-radius:4px;vertical-align:3px}
 .planfoot{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .planfoot span small{display:block;font-family:var(--sans);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
@@ -131,7 +131,7 @@ table.plan .minref{display:inline-block;margin-left:6px;font-family:var(--sans);
   <div class="brand"><img src="icon-192.png" alt="Clipper Aviation" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v22</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v23</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -484,8 +484,8 @@ function render(){
   if(planOn){ const tb=$("planTable").querySelector("tbody"); tb.innerHTML="";
     r.rows.forEach((row,i)=>{ const leg=trip.legs[i]; if(!leg.to) return; const isEnd=leg.ground==="end";
       const tr=document.createElement("tr"); if(isEnd||row.buy<=0) tr.className="nobuy";
-      tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400">end</span>':""}</td>
-        <td class="num buy">${isEnd?"–":(row.buy>0?`${row.buy} gal<span class="minref">${row.min?"min "+row.min:"no min"}</span><small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(row.lbs)} lb</small>`:`no fuel${row.min?`<span class="minref">min ${row.min}</span>`:""}`)}</td>
+      tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>`}</td>
+        <td class="num buy">${isEnd?"–":(row.buy>0?`${row.buy} gal<small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(row.lbs)} lb</small>`:"no fuel")}</td>
         <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
         <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>`;
       tb.appendChild(tr); });
