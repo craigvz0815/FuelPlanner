@@ -85,6 +85,11 @@ table.plan tr.nobuy td{color:var(--muted)}
 table.plan .minref{display:inline-block;margin-top:3px;font-family:var(--sans);font-weight:600;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:var(--warn-bg);padding:1px 5px;border-radius:4px}
 table.plan td.stop .minref{display:block;width:max-content}
 .planfoot{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.startline{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:-4px 0 10px;padding:10px 12px;border-radius:8px;background:var(--calc);font-family:var(--sans)}
+.startline b{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--accent)}
+.startline span{font-size:13px;color:var(--muted)}
+.planmode{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px}
+table.plan .cheap{display:inline-block;margin-top:3px;margin-left:4px;font-family:var(--sans);font-weight:600;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ok);background:var(--ok-bg);padding:1px 5px;border-radius:4px}
 .planfoot span small{display:block;font-family:var(--sans);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .step{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 8px;font-size:14px;font-weight:500;border-radius:6px}
@@ -132,7 +137,7 @@ table.plan td.stop .minref{display:block;width:max-content}
   <div class="brand"><img src="icon-192.png" alt="Clipper Aviation" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v26</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v29</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -146,7 +151,8 @@ table.plan td.stop .minref{display:block;width:max-content}
   <div class="settings">
     <label class="f">Trip name<input type="text" id="tripName"></label>
     <label class="f">Start airport<input type="text" id="startApt"></label>
-    <label class="f">Start fuel (lbs)<input type="number" id="startFuel" step="10" placeholder="e.g. 2550" inputmode="numeric"></label>
+    <label class="f">Fuel on board now (lbs)<input type="number" id="startFuel" step="10" placeholder="e.g. 2550" inputmode="numeric"></label>
+    <label class="f">Buy before departure (gal)<input type="number" id="startBuy" step="5" placeholder="0" inputmode="numeric"></label>
     <label class="f">Burn (lbs per block hr)<input type="number" id="burn" step="10"></label>
     <label class="f">Min landing fuel (lbs)<input type="number" id="minLand" step="10"></label>
     <label class="f">Usable capacity (lbs)<input type="number" id="cap" step="10"></label>
@@ -156,8 +162,15 @@ table.plan td.stop .minref{display:block;width:max-content}
 
 <section class="panel" id="planPanel" hidden>
   <h2>Fuel plan</h2>
+  <div class="startline" id="startLine"></div>
   <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Waives</th><th class="num">Land</th></tr></thead><tbody></tbody></table></div>
   <div class="planfoot" id="planFoot"></div>
+  <div class="planmode">
+    <span class="muted" style="font-family:var(--sans);font-size:12px">Extra fuel goes to:</span>
+    <button id="modeCheap" class="small">Cheapest stop</button>
+    <button id="modeMin" class="small">Min stops only</button>
+  </div>
+  <p class="muted" id="planNote" style="font-size:12px;margin:8px 0 0"></p>
 </section>
 
 <section class="panel">
@@ -204,7 +217,7 @@ table.plan td.stop .minref{display:block;width:max-content}
 
 <section class="panel">
   <details id="libDetails" open>
-  <summary>FBO library · updated 2026-10-22</summary>
+  <summary>FBO library · updated 2026-10-18 (VNY price)</summary>
   <div class="tablewrap">
   <table id="fbos">
     <thead><tr>
@@ -339,15 +352,16 @@ const FBOS=[
   "waive": 0
  },
  {
-  "asOf": "",
-  "fbo": "Clipper Aviation (home)",
+  "asOf": "2026-10-18",
+  "fbo": "Clipper Aviation (home) · fuel: Jet Aviation",
   "icao": "VNY",
   "infra": 0,
   "landing": 0,
   "min": 0,
-  "notes": "Home base",
+  "notes": "Home base. JetFuelX contract (AEG Fuels): $7.42 1–500 gal, $7.32 501–999, $7.22 1,000+",
   "parking": 0,
-  "source": "",
+  "price": 7.42,
+  "source": "JetFuelX 10/18",
   "waive": 0
  },
  {
@@ -388,7 +402,9 @@ function blockFmt(h){ const t=Math.round(h*60); return Math.floor(t/60)+":"+Stri
 function fboFor(icao){ const k=(icao||"").trim().toUpperCase().replace(/^K/,""); return fbos.find(f=>f.icao.toUpperCase()===k) }
 
 function compute(){
-  let fuel=+trip.startFuel||0; const burn=+trip.burn||0; const rows=[]; let tot={gal:0,lbs:0,waived:0,owed:0,cost:0,unknownPrice:false};
+  const sb=+trip.startBuy||0, sf=fboFor(trip.start)||{};
+  let fuel=(+trip.startFuel||0)+sb*LBS; const burn=+trip.burn||0; const rows=[]; let tot={gal:sb,lbs:sb*LBS,waived:0,owed:0,cost:0,unknownPrice:false};
+  if(sb>0){ if(sf.price) tot.cost+=sb*sf.price; else tot.unknownPrice=true }
   trip.legs.forEach((leg,i)=>{
     const f=fboFor(leg.to)||{min:0,waive:0,landing:0,infra:0,parking:0,price:null};
     const depart=fuel, land=depart-hours(leg.block)*burn;
@@ -419,34 +435,37 @@ let lastPlanNote="";
 function plan(){ if(trip.startFuel===""||trip.startFuel==null||trip.manual||!trip.legs.some(l=>l.to)) render(); else autoPlan() }
 function autoPlan(){
   lastPlanNote="";
-  trip.legs.forEach(l=>{ if(l.ground!=="end") l.buy=null });          // 1. waiver minimums everywhere
+  trip.legs.forEach(l=>{ if(l.ground!=="end") l.buy=null }); trip.startBuy=0;   // 1. waiver minimums everywhere, nothing extra at the start airport yet
+  const startCand=()=>({i:-1,l:{to:trip.start,ground:"start"},f:fboFor(trip.start)||{},start:true});
   let r=compute();
   const placed=[];
   const addAt=(c,lbsNeeded)=>{                                          // add fuel at stop c (5-gal steps) without busting capacity on any later departure
     r=compute(); let room=Infinity; for(let i=c.i+1;i<r.rows.length;i++) room=Math.min(room, +trip.cap - r.rows[i].depart);
     if(!isFinite(room)||room<=0) return 0;
     const addGal=Math.min(Math.ceil(lbsNeeded/LBS/5)*5, Math.floor(room/LBS)); if(addGal<=0) return 0;
-    c.l.buy=(r.rows[c.i].buy||0)+addGal;
-    placed.push(`${addGal} gal at ${c.l.to}${c.f.price?" ($"+c.f.price.toFixed(2)+"/gal)":" (no price on file)"}`);
+    if(c.start) trip.startBuy=(+trip.startBuy||0)+addGal; else c.l.buy=(r.rows[c.i].buy||0)+addGal;
+    placed.push(`${addGal} gal at ${c.l.to}${c.start?" before departure":""}${c.f.price?" ($"+c.f.price.toFixed(2)+"/gal)":" (no price on file)"}`);
     return addGal*LBS; };
   const byPrice=(a,b)=>((a.f.price)||99)-((b.f.price)||99);            // cheapest first; no price = treated as expensive
+  const okStop=f=> trip.extraMode==="min" ? (f.min>0) : true;          // "Min stops only": extra fuel only where a waiver minimum already forces a purchase
   const minLand=+trip.minLand||0;
   for(let guard=0;guard<20;guard++){                                    // 2. every landing must be at or above the minimum landing fuel
     r=compute(); const bad=r.rows.findIndex((row,i)=>i>0&&trip.legs[i].to&&row.land<minLand); if(bad<0) break;
     let need=minLand - r.rows[bad].land;
-    const prior=trip.legs.slice(0,bad).map((l,i)=>({l,i,f:fboFor(l.to)||{}})).filter(x=>x.l.to&&x.l.ground!=="end").sort(byPrice);
+    const prior=[startCand(),...trip.legs.slice(0,bad).map((l,i)=>({l,i,f:fboFor(l.to)||{}}))].filter(x=>x.l.to&&x.l.ground!=="end"&&okStop(x.f)).sort(byPrice);
     let got=0; for(const c of prior){ if(need<=0) break; const a=addAt(c,need); need-=a; got+=a }
     if(got<=0){ lastPlanNote="Cannot reach "+fmt(minLand)+" lb landing at "+trip.legs[bad].to+" within capacity."; break }
   }
   const target=Math.max(minLand, +trip.endTarget||0);
   let short=target - compute().final;                                   // 3. extra fuel wanted at the end of the day
   if(short>0){
-    const cands=trip.legs.map((l,i)=>({l,i,f:fboFor(l.to)||{}})).filter(x=>x.l.ground!=="end"&&x.l.to);
+    const cands=[startCand(),...trip.legs.map((l,i)=>({l,i,f:fboFor(l.to)||{}}))].filter(x=>x.l.ground!=="end"&&x.l.to&&okStop(x.f));
     cands.sort(byPrice);
     for(const c of cands){ if(short<=0) break; short-=addAt(c,short) }
     if(short>LBS) lastPlanNote+=" Could not fit "+fmt(short)+" more lbs within capacity.";
   }
-  if(placed.length) lastPlanNote="Extra fuel beyond waiver minimums placed at the cheapest stop(s) that can carry it: "+placed.join(", ")+"."+lastPlanNote;
+  { const m=new Map(); placed.forEach(x=>{ const [gal,...rest]=x.split(" gal at "); const k=rest.join(" gal at "); m.set(k,(m.get(k)||0)+ +gal) }); placed.length=0; m.forEach((g,k)=>placed.push(g+" gal at "+k)) }
+  if(placed.length) lastPlanNote="Extra fuel beyond waiver minimums placed at the cheapest "+(trip.extraMode==="min"?"fee stop(s)":"stop(s)")+" that can carry it: "+placed.join(", ")+"."+lastPlanNote;
   for(let pass=0;pass<3;pass++){                                        // 4. safety: never exceed capacity
     r=compute(); let fixed=true;
     r.rows.forEach((row,i)=>{ if(i>0 && row.depart>+trip.cap){ const prev=trip.legs[i-1]; const over=row.depart-trip.cap; prev.buy=Math.max(0,Math.floor((r.rows[i-1].buy*LBS-over)/LBS)); fixed=false } });
@@ -456,7 +475,7 @@ function autoPlan(){
 }
 
 function render(){
-  $("tripName").value=trip.name; $("startApt").value=trip.start; $("startFuel").value=trip.startFuel;
+  $("tripName").value=trip.name; $("startApt").value=trip.start; $("startFuel").value=trip.startFuel; $("startBuy").value=trip.startBuy||"";
   $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap; $("endTarget").value=trip.endTarget||"";
   const r=compute(); const list=$("legList"); list.innerHTML=""; const noFuel=(trip.startFuel===""||trip.startFuel==null);
   let from=trip.start;
@@ -492,6 +511,13 @@ function render(){
   const planOn=!noFuel && trip.legs.some(l=>l.to);
   $("planPanel").hidden=!planOn;
   if(planOn){ const tb=$("planTable").querySelector("tbody"); tb.innerHTML="";
+    { const sb=+trip.startBuy||0, dep=(+trip.startFuel||0)+sb*LBS;
+      $("startLine").innerHTML=`<span>Suggested departure fuel at ${trip.start||"start"}</span><b>${fmt(dep)} lb</b><span>${sb>0?`add <b style="font-size:15px">${sb} gal</b> (${fmt(sb*LBS)} lb) to the ${fmt(+trip.startFuel||0)} on board`:"no fuel needed before departure"}</span>`; }
+    { const sb=+trip.startBuy||0, sf=fboFor(trip.start)||{}; const tr=document.createElement("tr"); if(sb<=0) tr.className="nobuy";
+      tr.innerHTML=`<td class="stop">${trip.start||"—"}<span class="minref" style="color:var(--muted);background:var(--calc)">start</span></td>
+        <td class="num buy">${sb>0?`${sb} gal<small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(sb*LBS)} lb</small>`:"no fuel"}</td>
+        <td class="num">–</td><td class="num">${fmt((+trip.startFuel||0)+sb*LBS)}<small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">depart</small></td>`;
+      tb.appendChild(tr); }
     r.rows.forEach((row,i)=>{ const leg=trip.legs[i]; if(!leg.to) return; const isEnd=leg.ground==="end";
       const tr=document.createElement("tr"); if(isEnd||row.buy<=0) tr.className="nobuy";
       tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>`}</td>
@@ -499,6 +525,12 @@ function render(){
         <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
         <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>`;
       tb.appendChild(tr); });
+    $("modeCheap").classList.toggle("primary",trip.extraMode!=="min"); $("modeMin").classList.toggle("primary",trip.extraMode==="min");
+    const priced=[{to:trip.start,f:fboFor(trip.start)||{}},...trip.legs.filter(l=>l.to&&l.ground!=="end").map(l=>({to:l.to,f:fboFor(l.to)||{}}))].filter(x=>x.to&&x.f.price).sort((a,b)=>a.f.price-b.f.price);
+    const seen=new Set(); const uniq=priced.filter(x=>!seen.has(x.to)&&seen.add(x.to));
+    $("planNote").textContent= uniq.length? "Cheapest fuel today: "+uniq[0].to+" $"+uniq[0].f.price.toFixed(2)+"/gal"+(uniq.length>1?" · then "+uniq.slice(1).map(x=>x.to+" $"+x.f.price.toFixed(2)).join(" · "):"")+(trip.extraMode==="min"?". Extra fuel limited to stops with a waiver minimum.":".") : "No fuel prices on file for these stops.";
+    const cheapest=uniq[0]&&uniq[0].to;
+    tb.querySelectorAll("tr").forEach((tr,i)=>{ const code=tr.querySelector("td.stop"); if(cheapest&&code&&code.firstChild&&code.firstChild.textContent===cheapest) code.querySelector(".minref").insertAdjacentHTML("afterend",'<span class="cheap">$'+uniq[0].f.price.toFixed(2)+'</span>') });
     $("planFoot").innerHTML=`<span><b>${fmt(r.tot.gal)} gal</b><small>total to buy</small></span><span><b>${money(r.tot.waived)}</b><small>fees waived</small></span><span><b>${money(r.tot.owed)}</b><small>still owed</small></span><span><b>${fmt(r.final)} lb</b><small>at end</small></span>`;
   }
   const worst=r.rows.find(x=>x.cls==="bad")||r.rows.find(x=>x.cls==="warn");
@@ -541,7 +573,8 @@ document.addEventListener("input",e=>{
     else l[k]=t.value;
     if(k==="ground"&&t.value==="end") l.buy=null;
     plan(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); el.setSelectionRange&&el.value.length&&el.setSelectionRange(el.value.length,el.value.length)} }
-  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",endTarget:"endTarget"};
+  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",startBuy:"startBuy",burn:"burn",minLand:"minLand",cap:"cap",endTarget:"endTarget"};
+    if(t.id==="startBuy") trip.manual=true;
     if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; plan(); $(keep).focus() } }
 });
 document.addEventListener("focusout",e=>{ const t=e.target; if(t.dataset&&t.dataset.k==="block"&&t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; if(l.block&&hours(l.block)>0){ l.block=blockFmt(hours(l.block)); render() } } });
@@ -550,6 +583,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.del!=null){ trip.legs.splice(+b.dataset.del,1); render() }
   else if(b.id==="addStop"){ const endIdx=trip.legs.findIndex(l=>l.ground==="end"); const nl={to:"",block:"1:00",ground:"quick",buy:null}; if(endIdx>=0) trip.legs.splice(endIdx,0,nl); else trip.legs.push(nl); render() }
   else if(b.id==="autoBtn"){ trip.manual=false; autoPlan() }
+  else if(b.id==="modeCheap"||b.id==="modeMin"){ trip.extraMode= b.id==="modeMin"?"min":"cheap"; trip.manual=false; plan() }
   else if(b.id==="pasteBtn") pasteFromClipboard();
   else if(b.id==="pasteToggle") showPastePrompt($("pasteBox").hidden,true);
   else if(b.id==="daysBtn"){ const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent= buildDays().length? "Days from imported itineraries:" : "No itineraries imported yet."; const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap); }
