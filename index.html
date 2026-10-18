@@ -131,7 +131,7 @@ table.plan .minref{display:inline-block;margin-left:8px;font-family:var(--sans);
   <div class="brand"><img src="icon-192.png" alt="Clipper Aviation" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v23</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v24</span>
 </header>
 <div class="stickybar" id="stickybar">
   <div><b id="bFinal">–</b><small>lbs at end</small></div>
@@ -418,26 +418,33 @@ function autoPlan(){
   lastPlanNote="";
   trip.legs.forEach(l=>{ if(l.ground!=="end") l.buy=null });          // 1. waiver minimums everywhere
   let r=compute();
-  const target=Math.max(+trip.minLand||0, +trip.endTarget||0);
-  let short=target - r.final;                                           // 2. extra fuel wanted at the end of the day
+  const placed=[];
+  const addAt=(c,lbsNeeded)=>{                                          // add fuel at stop c (5-gal steps) without busting capacity on any later departure
+    r=compute(); let room=Infinity; for(let i=c.i+1;i<r.rows.length;i++) room=Math.min(room, +trip.cap - r.rows[i].depart);
+    if(!isFinite(room)||room<=0) return 0;
+    const addGal=Math.min(Math.ceil(lbsNeeded/LBS/5)*5, Math.floor(room/LBS)); if(addGal<=0) return 0;
+    c.l.buy=(r.rows[c.i].buy||0)+addGal;
+    placed.push(`${addGal} gal at ${c.l.to}${c.f.price?" ($"+c.f.price.toFixed(2)+"/gal)":" (no price on file)"}`);
+    return addGal*LBS; };
+  const byPrice=(a,b)=>((a.f.price)||99)-((b.f.price)||99);            // cheapest first; no price = treated as expensive
+  const minLand=+trip.minLand||0;
+  for(let guard=0;guard<20;guard++){                                    // 2. every landing must be at or above the minimum landing fuel
+    r=compute(); const bad=r.rows.findIndex((row,i)=>i>0&&trip.legs[i].to&&row.land<minLand); if(bad<0) break;
+    let need=minLand - r.rows[bad].land;
+    const prior=trip.legs.slice(0,bad).map((l,i)=>({l,i,f:fboFor(l.to)||{}})).filter(x=>x.l.to&&x.l.ground!=="end").sort(byPrice);
+    let got=0; for(const c of prior){ if(need<=0) break; const a=addAt(c,need); need-=a; got+=a }
+    if(got<=0){ lastPlanNote="Cannot reach "+fmt(minLand)+" lb landing at "+trip.legs[bad].to+" within capacity."; break }
+  }
+  const target=Math.max(minLand, +trip.endTarget||0);
+  let short=target - compute().final;                                   // 3. extra fuel wanted at the end of the day
   if(short>0){
     const cands=trip.legs.map((l,i)=>({l,i,f:fboFor(l.to)||{}})).filter(x=>x.l.ground!=="end"&&x.l.to);
-    cands.sort((a,b)=>((a.f.price)||99)-((b.f.price)||99));            // cheapest first; no price = treated as expensive
-    const placed=[];
-    for(const c of cands){ if(short<=0) break;
-      r=compute();
-      // room: adding fuel at stop c raises every later departure by the same amount — stay under capacity on all of them
-      let room=Infinity; for(let i=c.i+1;i<r.rows.length;i++) room=Math.min(room, +trip.cap - r.rows[i].depart);
-      if(!isFinite(room)||room<=0) continue;
-      const addGal=Math.min(Math.ceil(short/LBS/5)*5, Math.floor(room/LBS));   // cover the shortfall in 5-gal steps, never over capacity
-      if(addGal<=0) continue;
-      c.l.buy=(r.rows[c.i].buy||0)+addGal; short-=addGal*LBS;
-      placed.push(`${addGal} gal at ${c.l.to}${c.f.price?" ($"+c.f.price.toFixed(2)+"/gal)":" (no price on file)"}`);
-    }
-    if(placed.length) lastPlanNote="Extra fuel beyond waiver minimums placed at the cheapest stop(s): "+placed.join(", ")+".";
+    cands.sort(byPrice);
+    for(const c of cands){ if(short<=0) break; short-=addAt(c,short) }
     if(short>LBS) lastPlanNote+=" Could not fit "+fmt(short)+" more lbs within capacity.";
   }
-  for(let pass=0;pass<3;pass++){                                        // 3. safety: never exceed capacity
+  if(placed.length) lastPlanNote="Extra fuel beyond waiver minimums placed at the cheapest stop(s) that can carry it: "+placed.join(", ")+"."+lastPlanNote;
+  for(let pass=0;pass<3;pass++){                                        // 4. safety: never exceed capacity
     r=compute(); let fixed=true;
     r.rows.forEach((row,i)=>{ if(i>0 && row.depart>+trip.cap){ const prev=trip.legs[i-1]; const over=row.depart-trip.cap; prev.buy=Math.max(0,Math.floor((r.rows[i-1].buy*LBS-over)/LBS)); fixed=false } });
     if(fixed) break;
