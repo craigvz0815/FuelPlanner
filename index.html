@@ -173,6 +173,10 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   header{flex-wrap:nowrap} .logo{width:36px;height:36px;border-radius:8px} h1{font-size:19px;white-space:nowrap}
   .rl{display:none} #reloadBtn{width:32px;height:32px;padding:0;border-radius:50%}
 }
+.wbbar{display:flex;gap:8px;align-items:flex-start;background:var(--warn-bg);color:var(--warn);border:1.5px solid var(--warn);padding:9px 11px;border-radius:6px;margin-bottom:10px;font-size:13px;font-weight:500}
+.wbbar b{font-weight:700}
+.wbflag{display:block;width:max-content;margin:3px 0 0 auto;font-family:var(--sans);font-weight:700;font-size:10px;letter-spacing:.04em;color:var(--warn);background:var(--warn-bg);padding:1px 5px;border-radius:4px}
+.stickybar .pill.wb{background:var(--warn-bg);color:var(--warn)}
 .sharerow{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
 .pdfview{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;grid-template-rows:auto 1fr auto}
 .pv-bar{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -193,7 +197,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v34</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v36</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -252,6 +256,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 
 <section class="panel" id="planPanel" hidden>
   <h2>Fuel plan</h2>
+  <div class="wbbar" id="wbBar" hidden></div>
   <div class="manualbar" id="manualBar" hidden><span>You changed the plan by hand.</span><button id="resetPlan" class="small">Reset to suggested</button></div>
   <div class="startline" id="startLine"></div>
   <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Fees saved</th><th class="num">Land</th><th class="num">Takeoff</th></tr></thead><tbody></tbody></table></div>
@@ -517,6 +522,12 @@ function compute(){
   return {rows,tot,final:fuel};
 }
 
+const WB_FRAC=0.85;                                                     // takeoff fuel above 85% of usable capacity -> confirm weight & balance
+const wbLimit=()=>WB_FRAC*(+trip.cap||0);
+function wbStops(r){ const lim=wbLimit(), out=[]; if(!lim) return out;
+  const dep=(+trip.startFuel||0)+(+trip.startBuy||0)*LBS; if(dep>lim) out.push({at:trip.start||"start",fuel:dep});
+  r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to||l.ground==="end") return; const to=row.land+row.lbs; if(to>lim) out.push({at:l.to,fuel:to}) });
+  return out }
 let lastPlanNote="";
 // Re-plan automatically whenever inputs change, unless the crew has hand-edited a Buy amount (then their numbers stand until Auto-plan is pressed).
 function plan(){ if(trip.startFuel===""||trip.startFuel==null||trip.manual||!trip.legs.some(l=>l.to)) render(); else autoPlan() }
@@ -626,7 +637,7 @@ function render(){
       const tr=document.createElement("tr"); if(sb<=0) tr.className="nobuy";
       tr.innerHTML=`<td class="stop">${trip.start||"—"}<span class="minref" style="color:var(--muted);background:var(--calc)">start</span></td>
         <td class="num buy" data-edit="start">${galCell("start",sb,sb*LBS,"pbuyS",'data-k="startBuy"')}</td>
-        <td class="num">–</td><td class="num muted">–</td><td class="num">${fmt(dep)}</td>`;
+        <td class="num">–</td><td class="num muted">–</td><td class="num">${fmt(dep)}${dep>wbLimit()?'<span class="wbflag">W&amp;B</span>':""}</td>`;
       tb.appendChild(tr); }
     r.rows.forEach((row,i)=>{ const leg=trip.legs[i]; if(!leg.to) return; const isEnd=leg.ground==="end";
       const tr=document.createElement("tr"); if(isEnd||row.buy<=0) tr.className="nobuy";
@@ -634,8 +645,10 @@ function render(){
         <td class="num buy"${isEnd?"":` data-edit="${i}"`}>${isEnd?"–":galCell(i,row.buy,row.lbs,"pbuy"+i,`data-i="${i}" data-k="buy"`)}</td>
         <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
         <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>
-        <td class="num">${isEnd?"–":fmt(row.land+row.lbs)}</td>`;
+        <td class="num">${isEnd?"–":fmt(row.land+row.lbs)+(row.land+row.lbs>wbLimit()?'<span class="wbflag">W&amp;B</span>':"")}</td>`;
       tb.appendChild(tr); });
+    { const wb=wbStops(r); $("wbBar").hidden=!wb.length;
+      if(wb.length) $("wbBar").innerHTML=`<span>⚠</span><span><b>Confirm W&amp;B.</b> Takeoff fuel above ${Math.round(WB_FRAC*100)}% of max (${fmt(wbLimit())} lb) at ${wb.map(x=>x.at+" ("+fmt(x.fuel)+" lb)").join(", ")}.</span>`; }
     $("modeCheap").classList.toggle("primary",trip.extraMode!=="min"); $("modeMin").classList.toggle("primary",trip.extraMode==="min");
     const priced=[{to:trip.start,f:fboFor(trip.start)||{}},...trip.legs.filter(l=>l.to&&l.ground!=="end").map(l=>({to:l.to,f:fboFor(l.to)||{}}))].filter(x=>x.to&&x.f.price).sort((a,b)=>a.f.price-b.f.price);
     const seen=new Set(); const uniq=priced.filter(x=>!seen.has(x.to)&&seen.add(x.to));
@@ -649,7 +662,8 @@ function render(){
   $("stickybar").hidden=!hasLegs;
   $("bDepart").textContent= noFuel?"–":fmt((+trip.startFuel||0)+(+trip.startBuy||0)*LBS);
   $("bGal").textContent= noFuel?"–":fmt(r.tot.gal); $("bWaived").textContent= noFuel?"–":money(r.tot.waived);
-  const pc=$("bCheck"); pc.textContent= noFuel? "Enter fuel ↓" : (worst? worst.check : "OK"); pc.className="pill"+(!noFuel&&worst&&worst.cls==="bad"?" bad":"");
+  const wbN=noFuel?0:wbStops(r).length;
+  const pc=$("bCheck"); pc.textContent= noFuel? "Enter fuel ↓" : (worst&&worst.cls==="bad"? worst.check : (wbN? "Confirm W&B" : (worst? worst.check : "OK"))); pc.className="pill"+(!noFuel&&worst&&worst.cls==="bad"?" bad":(wbN?" wb":""));
 
   // ---- notes ----
   const notes=[];
@@ -660,6 +674,7 @@ function render(){
     if(row.f.notes&&row.f.notes!=="Home base") notes.push(`${l.to}: ${row.f.notes}.`);
   });
   if(lastPlanNote) notes.unshift(lastPlanNote);
+  if(!noFuel){ const wb=wbStops(r); if(wb.length) notes.unshift(`Confirm weight & balance: takeoff above ${fmt(wbLimit())} lb (${Math.round(WB_FRAC*100)}% of max) at ${wb.map(x=>x.at).join(", ")}.`); }
   if(r.tot.unknownPrice) notes.push("Fuel cost excludes stops with no price on file.");
   $("notes").innerHTML=notes.map(n=>`<li>${n}</li>`).join("");
   renderFbos(); save();
@@ -791,7 +806,8 @@ function buildSummaryPdf(){
     doc.setFont("helvetica",o.bad?"bold":"normal"); doc.setFontSize(o.end?14:12); col(o.bad?RED:INK);
     const lt= o.end? `land ${fmt(o.land)} lb` : (o.land==null? `takeoff ${fmt(o.to)}` : `${fmt(o.land)}  /  ${fmt(o.to)}`);
     doc.text(pdfTxt(lt),R-10,mid+(o.end?2:4),{align:"right"});
-    if(o.bad){ doc.setFontSize(8); doc.text(pdfTxt(o.check),R-10,mid+16,{align:"right"}) }
+    const wbHit=!o.end&&o.to>wbLimit();
+    if(o.bad||wbHit){ doc.setFont("helvetica","bold"); doc.setFontSize(8); col(o.bad?RED:AMBER); doc.text(pdfTxt([o.bad?o.check:"",wbHit?"CONFIRM W&B":""].filter(Boolean).join("  •  ")),R-10,mid+16,{align:"right"}) }
     y+=h; });
   y+=12;
   doc.setFont("helvetica","normal"); doc.setFontSize(8); col(GRAY);
@@ -813,6 +829,7 @@ function buildSummaryPdf(){
     doc.text(pdfTxt(`This plan avoids ${money(r.tot.waived)} of ${money(totalFees)} in FBO fees (${Math.round(r.tot.waived/totalFees*100)}%).`),M,y); y+=20; }
   // notes
   const notes=[];
+  { const wb=wbStops(r); if(wb.length) notes.push(`CONFIRM WEIGHT & BALANCE: takeoff fuel above ${Math.round(WB_FRAC*100)}% of max (${fmt(wbLimit())} lb) at ${wb.map(x=>x.at+" ("+fmt(x.fuel)+" lb)").join(", ")}.`); }
   if(trip.manual) notes.push("This plan includes buy amounts changed by hand.");
   if(lastPlanNote) notes.push(lastPlanNote.trim());
   if(priced.length) notes.push("Cheapest fuel today: "+priced.filter((x,i,a)=>a.findIndex(z=>z.to===x.to)===i).map(x=>x.to+" $"+x.f.price.toFixed(2)).join(", ")+".");
