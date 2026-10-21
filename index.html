@@ -193,7 +193,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v33</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v34</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -463,16 +463,18 @@ const FBOS=[
   "asOf": "2026-10-22"
  }
 ];
-const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,burn:700,minLand:1000,cap:3611,
+const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,burn:850,minLand:1200,cap:3611,dv:2,
  legs:[{to:"SBA",block:"0:42",ground:"quick",buy:null},{to:"NUQ",block:"1:18",ground:"quick",buy:null},
        {to:"HHR",block:"1:24",ground:"quick",buy:null},{to:"VGT",block:"1:12",ground:"quick",buy:null},
        {to:"VNY",block:"1:18",ground:"end",buy:null}]};
 
-const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",burn:700,minLand:1000,cap:3611,legs:[{to:"",block:"",ground:"quick",buy:null}]};
+const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",burn:850,minLand:1200,cap:3611,dv:2,legs:[{to:"",block:"",ground:"quick",buy:null}]};
 let fbos=structuredClone(FBOS), trip;   // fbos is replaced by the shared library once db answers
 function load(){
   try{ trip=JSON.parse(localStorage.getItem("cfp.trip")) }catch(e){}
   if(!trip||!Array.isArray(trip.legs)) trip=structuredClone(DEFAULT_TRIP);
+  // v34 defaults: 850 lb/hr burn, 1,200 lb min landing. Phones still on the old defaults (700 / 1,000) move up once; values someone set by hand stay.
+  if(trip.dv!==2){ if(+trip.burn===700||!trip.burn) trip.burn=850; if(+trip.minLand===1000||!trip.minLand) trip.minLand=1200; trip.dv=2 }
 }
 function save(){ try{ localStorage.setItem("cfp.trip",JSON.stringify(trip)) }catch(e){} }
 const $=id=>document.getElementById(id);
@@ -938,7 +940,7 @@ function buildDays(){
 function loadDay(key){
   const days=buildDays(); const d=days.find(x=>x.key===key); if(!d) return;
   const idx=days.indexOf(d); const next=days[idx+1];
-  trip={name:`${d.date} · ${d.tail} · ${d.trips.join("+")}`,start:d.legs[0].from,startFuel:"",burn:trip.burn||700,minLand:trip.minLand||1000,cap:trip.cap||3611,endTarget:trip.endTarget||"",legs:[]};
+  trip={name:`${d.date} · ${d.tail} · ${d.trips.join("+")}`,start:d.legs[0].from,startFuel:"",burn:trip.burn||850,minLand:trip.minLand||1200,cap:trip.cap||3611,dv:2,endTarget:trip.endTarget||"",legs:[]};
   d.legs.forEach((l,i)=>{ const last=i===d.legs.length-1;
     let ground="quick";
     if(last){ ground= (next&&next.tail===d.tail&&next.legs[0].from===l.to&&l.to!=="VNY")? "overnight":"end"; }
