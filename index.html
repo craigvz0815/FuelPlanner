@@ -213,7 +213,7 @@ table.plan tr.hasfo td{border-bottom:0}
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v43</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v44</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -958,53 +958,55 @@ function buildSummaryPdf(){
   const now=new Date(); doc.text("Prepared "+now.toLocaleDateString("en-US")+" "+now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}),R,y+26,{align:"right"});
   y+=44; doc.setDrawColor(...LINE); doc.setLineWidth(1); doc.line(M,y,R,y); y+=18;
   doc.setFontSize(10); col(GRAY); doc.text("ROUTE",M,y); doc.setFont("helvetica","bold"); col(INK); doc.setFontSize(11); doc.text(pdfTxt(route),M+48,y); y+=16;
-  // ---- FUEL ORDERS: one big row per stop ----
-  doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("FUEL ORDERS",M,y+4);
-  doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.text("BUY",M+318,y+4,{align:"right"}); doc.text("LAND  /  TAKEOFF",R-10,y+4,{align:"right"}); y+=10;
+  // ---- FUEL ORDERS: one row per stop, five clear columns ----
+  const C={stop:M+10, buy:M+232, fo:M+252, land:R-82, to:R-10};
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("FUEL ORDERS",M,y+4); y+=12;
+  doc.setFont("helvetica","bold"); doc.setFontSize(7.5); col(GRAY);
+  doc.text("STOP",C.stop,y+4); doc.text("BUY",C.buy,y+4,{align:"right"}); doc.text("FUEL ORDER",C.fo,y+4); doc.text("LAND",C.land,y+4,{align:"right"}); doc.text("TAKEOFF",C.to,y+4,{align:"right"});
+  y+=9; doc.setDrawColor(...INK); doc.setLineWidth(0.8); doc.line(M,y,R,y); doc.setLineWidth(1);
   const orders=[];
-  { const sf=fboFor(trip.start)||{}; orders.push({fo:fuelOrder(onBoard,dep,sb),date:(trip.legs.find(l=>l.date)||{}).date,vinfo:vendorInfo(trip.start),code:trip.start||"Start",sub:"before departure  •  "+fmt(onBoard)+" lb on board",gal:sb,lbs:sb*LBS,price:sf.price,land:null,to:dep,end:false,bad:false}); }
-  legs.forEach(({l,row})=>{ const end=l.ground==="end"; const f=fboFor(l.to)||{};
+  { const sf=fboFor(trip.start)||{}; orders.push({fo:fuelOrder(onBoard,dep,sb),date:(trip.legs.find(l=>l.date)||{}).date,code:trip.start||"Start",sub:"before departure  •  "+fmt(onBoard)+" lb on board",gal:sb,lbs:sb*LBS,land:null,to:dep,end:false,bad:false}); }
+  legs.forEach(({l,row})=>{ const end=l.ground==="end";
     const sub= end? "trip end" : [(row.min?"min "+row.min+" gal":"no minimum"), (row.waived?"saves "+money(row.waived):(row.min>0&&row.buy<row.min?"fee NOT waived":"")), (l.ground==="overnight"?"overnight":"")].filter(Boolean).join("  •  ");
-    orders.push({fo:end?null:fuelOrder(row.land,row.land+row.lbs,row.buy),date:l.date,prevTo:null,vinfo:vendorInfo(l.to),code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,price:end?null:f.price,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
+    orders.push({fo:end?null:fuelOrder(row.land,row.land+row.lbs,row.buy),date:l.date,code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
   const pdfMulti=new Set(orders.map(o=>o.date).filter(Boolean)).size>1;
-  orders.forEach((o,i)=>{ const h=o.end?36:54;
-    if(pdfMulti&&o.date&&(i===0||o.date!==orders[i-1].date)){ if(y+18+h>720){ doc.addPage(); y=M }
-      doc.setFillColor(225,229,222); doc.rect(M,y,R-M,16,"F"); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); col(GRAY);
-      doc.text(pdfTxt(dayLabel(o.date).toUpperCase()+(i>0?"  \u2022  overnight at "+orders[i-1].code:"")),M+10,y+11); y+=16 }
+  orders.forEach((o,i)=>{ const h=o.end?34:48;
+    if(pdfMulti&&o.date&&(i===0||o.date!==orders[i-1].date)){ if(y+16+h>720){ doc.addPage(); y=M }
+      doc.setFont("helvetica","bold"); doc.setFontSize(8); col(NAVY);
+      doc.text(pdfTxt(dayLabel(o.date).toUpperCase()+(i>0?"   overnight at "+orders[i-1].code:"")),C.stop,y+12); y+=16 }
     if(y+h>720){ doc.addPage(); y=M }
-    if(!o.end&&o.gal>0){ doc.setFillColor(238,243,248); doc.rect(M,y,R-M,h,"F") }
-    doc.setDrawColor(...LINE); doc.setLineWidth(1); doc.line(M,y+h,R,y+h);
-    if(i>0&&!o.end&&o.gal>0&&orders[i-1].gal>0){ doc.setDrawColor(255,255,255); doc.setLineWidth(3); doc.line(M,y,R,y); doc.setLineWidth(1) }
-    const mid=y+h/2;
-    // airport + context
-    doc.setFont("helvetica","bold"); doc.setFontSize(o.end?18:24); col(INK); doc.text(pdfTxt(o.code),M+10,mid+(o.end?2:0));
-    doc.setFont("helvetica","normal"); doc.setFontSize(8.5); col(o.below?RED:(o.sub.startsWith("min")?AMBER:GRAY));
-    if(!o.end) doc.text(pdfTxt(o.sub),M+10,mid+16); else { col(GRAY); doc.text("trip end",M+10+doc.getTextWidth(pdfTxt(o.code))*18/8.5+8,mid+2) }
-    // the order
+    const buying=!o.end&&o.gal>0;
+    if(buying){ doc.setFillColor(243,246,250); doc.rect(M,y,R-M,h,"F") }
+    doc.setDrawColor(...LINE); doc.line(M,y+h,R,y+h);
+    const top=y+(o.end?21:22), low=y+37;
+    // stop
+    doc.setFont("helvetica","bold"); doc.setFontSize(o.end?15:20); col(INK); doc.text(pdfTxt(o.code),C.stop,top);
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); col(o.below?RED:(o.sub.startsWith("min")?AMBER:GRAY));
+    if(o.end){ col(GRAY); doc.text("trip end",C.stop+doc.getTextWidth(pdfTxt(o.code))*15/8+6,top) } else doc.text(pdfTxt(o.sub),C.stop,low);
     if(!o.end){
-      if(o.gal>0){ doc.setFont("helvetica","bold"); doc.setFontSize(30); col(o.below?RED:NAVY); doc.text(String(o.gal),M+290,mid+10,{align:"right"});
-        doc.setFontSize(13); doc.text("gal",M+294,mid+10);
-        if(o.fo&&o.fo.aux){ doc.setFont("helvetica","bold"); doc.setFontSize(8.5); col(NAVY); doc.text(pdfTxt(o.fo.txt.toUpperCase()),M+318,mid+22,{align:"right"}) } }
-      else { doc.setFont("helvetica","bold"); doc.setFontSize(18); col(GRAY); doc.text("no fuel",M+318,mid+6,{align:"right"}) }
-      doc.setFont("helvetica","normal"); doc.setFontSize(9); col(GRAY);
-      const meta=[o.price?"$"+o.price.toFixed(2)+"/gal":"", o.gal>0?fmt(o.lbs)+" lb":""].filter(Boolean);
-      if(SHOW_VENDOR){ const v=o.vinfo; doc.setFont("helvetica","bold"); doc.setFontSize(9.5);
-        if(v.status==="confirmed"){ col(INK); doc.text(pdfTxt("via "+v.name),M+330,mid-8) }
-        else if(v.status==="brand"){ col(AMBER); doc.text(pdfTxt(v.name+"? CONFIRM"),M+330,mid-8) }
-        else { col(RED); doc.text("VENDOR UNKNOWN",M+330,mid-8) } }
-      doc.setFontSize(9);
-      meta.forEach((t,k)=>{ const ch=k===0&&o.price&&o.code===cheapest; doc.setFont("helvetica",ch?"bold":"normal"); col(ch?GREEN:GRAY); doc.text(t+(ch?"  cheapest":""),M+330,(SHOW_VENDOR?mid+4:mid-3)+k*12) });
+      // buy
+      if(buying){ doc.setFont("helvetica","bold"); doc.setFontSize(24); col(o.below?RED:NAVY); const gw=doc.getTextWidth(String(o.gal));
+        doc.setFontSize(10); const uw=doc.getTextWidth(" gal"); doc.text(" gal",C.buy,top,{align:"right"});
+        doc.setFontSize(24); doc.text(String(o.gal),C.buy-uw,top,{align:"right"});
+        doc.setFont("helvetica","normal"); doc.setFontSize(8); col(GRAY); doc.text(fmt(o.lbs)+" lb",C.buy,low,{align:"right"}); }
+      else { doc.setFont("helvetica","normal"); doc.setFontSize(12); col(GRAY); doc.text("no fuel",C.buy,top,{align:"right"}) }
+      // fuel order
+      if(o.fo){ doc.setFontSize(10.5); col(INK);
+        if(o.fo.aux){ doc.setFont("helvetica","bold"); doc.text(o.fo.top?"Top off mains":"Mains already full",C.fo,top-3);
+          if(o.fo.per>0){ doc.setFont("helvetica","normal"); doc.text(`+ ${o.fo.per} gal each aux`,C.fo,top+10) } }
+        else { doc.setFont("helvetica","normal"); doc.text(`${o.gal} gal in mains`,C.fo,top-3) } }
+      else { doc.setFont("helvetica","normal"); doc.setFontSize(10.5); col(GRAY); doc.text("–",C.fo,top-3) }
     }
     // land / takeoff
-    doc.setFont("helvetica",o.bad?"bold":"normal"); doc.setFontSize(o.end?14:12); col(o.bad?RED:INK);
-    const lt= o.end? `land ${fmt(o.land)} lb` : (o.land==null? `takeoff ${fmt(o.to)}` : `${fmt(o.land)}  /  ${fmt(o.to)}`);
-    doc.text(pdfTxt(lt),R-10,mid+(o.end?2:4),{align:"right"});
-    const wbHit=!o.end&&o.to>wbLimit();
-    if(o.bad||wbHit){ doc.setFont("helvetica","bold"); doc.setFontSize(8); col(o.bad?RED:AMBER); doc.text(pdfTxt([o.bad?o.check:"",wbHit?"CONFIRM W&B":""].filter(Boolean).join("  •  ")),R-10,mid+16,{align:"right"}) }
+    doc.setFontSize(11);
+    doc.setFont("helvetica",o.bad?"bold":"normal"); col(o.bad?RED:INK); doc.text(o.land==null?"–":fmt(o.land),C.land,top,{align:"right"});
+    if(o.bad){ doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.text(pdfTxt(o.check),C.land,low,{align:"right"}); doc.setFontSize(11) }
+    if(!o.end){ const wbHit=o.to>wbLimit(); doc.setFont("helvetica","normal"); col(INK); doc.text(fmt(o.to),C.to,top,{align:"right"});
+      if(wbHit){ doc.setFont("helvetica","bold"); doc.setFontSize(7.5); col(AMBER); doc.text("CONFIRM W&B",C.to,low,{align:"right"}) } }
     y+=h; });
-  y+=12;
-  doc.setFont("helvetica","normal"); doc.setFontSize(8); col(GRAY);
-  doc.text(pdfTxt("Shaded rows = buy fuel here. Amber = waiver minimum (buy at least this much to avoid the handling fee). Red = problem."),M,y); y+=22;
+  y+=10;
+  doc.setFont("helvetica","normal"); doc.setFontSize(7.5); col(GRAY);
+  doc.text(pdfTxt(`Shaded = buy fuel here. Amber = waiver minimum. Red = problem. Fuel order assumes fuel on board is in the mains (mains hold ${fmt(+trip.mainsCap||2550)} lb).`),M,y); y+=20;
   // results
   if(y>640){ doc.addPage(); y=M }
   doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("RESULTS",M,y); y+=8;
