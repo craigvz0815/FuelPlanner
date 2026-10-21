@@ -185,6 +185,7 @@ table.plan .vendor.unconf{color:var(--warn)} table.plan .vendor.unconf b{color:v
 table.plan .vendor.unknown{color:var(--bad);font-weight:700}
 .vendbar{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
 .vcol{display:none}
+table.plan tr.dayrow td{background:var(--calc);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--muted);padding:6px 8px;text-transform:uppercase;letter-spacing:.06em;white-space:normal}
 .sharerow{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
 .pdfview{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;grid-template-rows:auto 1fr auto}
 .pv-bar{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -205,7 +206,7 @@ table.plan .vendor.unknown{color:var(--bad);font-weight:700}
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v39</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v42</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -253,6 +254,7 @@ table.plan .vendor.unknown{color:var(--bad);font-weight:700}
   <div class="sect" id="sectDay" hidden>
     <div class="sect-label"><i>2</i>Day</div>
     <div id="dayChips" class="chips"></div>
+    <div class="muted" id="dayHint" style="margin-top:8px">Tap more days to combine them into one plan. Tap a selected day to remove it.</div>
   </div>
   <div class="sect" id="sectFuel" hidden>
     <div class="sect-label"><i>3</i>Fuel on board now</div>
@@ -311,7 +313,7 @@ table.plan .vendor.unknown{color:var(--bad);font-weight:700}
 
 <section class="panel">
   <details id="libDetails" open>
-  <summary>FBO library · updated 2026-10-18 (VNY price)</summary>
+  <summary>FBO library · from Clipper itineraries only · updated 2026-10-21</summary>
   <div class="tablewrap">
   <table id="fbos">
     <thead><tr>
@@ -321,7 +323,7 @@ table.plan .vendor.unknown{color:var(--bad);font-weight:700}
     <tbody id="fboBody"></tbody>
   </table>
   </div>
-  <p class="muted">Fees come from Clipper crew itineraries; verify with the FBO before relying on a waiver. Waivable fee = the handling/ramp fee the minimum purchase removes. Landing and infra fees are paid regardless. Parking only counts for Overnight stops. Fuel price blank = unknown; auto-plan then treats it as expensive.</p>
+  <p class="muted">Everything here comes from Clipper crew itineraries (JetInsight); when two itineraries disagree, the newer trip date wins. Waivable fee = the handling/ramp fee the minimum purchase removes. Landing and infra fees are paid regardless. Parking only counts for Overnight stops. Fuel price blank = no fuel line on any itinerary for that airport; the planner then treats it as expensive and buys only the minimum there.</p>
   </details>
 </section>
 </div>
@@ -336,147 +338,19 @@ table.plan .vendor.unknown{color:var(--bad);font-weight:700}
 const LBS=6.7;
 const FBOS=[
  {
-  "asOf": "2026-09-25",
-  "fbo": "Modern Aviation",
   "icao": "APA",
-  "infra": 40,
-  "landing": 0,
+  "fbo": "Modern Aviation",
   "min": 100,
-  "notes": "",
+  "waive": 325,
+  "landing": 0,
+  "infra": 40,
   "parking": 163,
   "source": "2B2CAI",
-  "waive": 325
- },
- {
-  "asOf": "2026-10-19",
-  "fbo": "Archer",
-  "icao": "HHR",
-  "brand": "Titan",
-  "brandSrc": "AirNav (Archer: Titan Contract Fuel, Multi Service card)",
-  "infra": 40,
-  "landing": 0,
-  "min": 136,
-  "notes": "Ask if infra fee waives with fuel",
-  "parking": 375,
-  "price": 11.28,
-  "source": "7HICKX",
-  "waive": 600
- },
- {
-  "asOf": "2026-10-19",
-  "fbo": "Avports",
-  "icao": "NUQ",
-  "brand": "World Fuel",
-  "brandSrc": "Acukwik",
-  "infra": 0,
-  "landing": 97,
-  "min": 150,
-  "notes": "PPR required for charter; 150 gal ramp waiver confirmed for <20k lb (eff. 5/1/26)",
-  "parking": 130,
-  "price": 10.2,
-  "source": "TXHDH0",
-  "waive": 194
- },
- {
-  "asOf": "2026-09-23",
-  "fbo": "Coos Aviation",
-  "icao": "OTH",
-  "vendor": "Titan",
-  "infra": 0,
-  "landing": 27,
-  "min": 0,
-  "notes": "$150 handling waived, no fuel required",
-  "parking": 75,
-  "price": 7.52,
-  "source": "4V7SII",
-  "waive": 0
- },
- {
-  "asOf": "2026-10-15",
-  "fbo": "Signature Aviation",
-  "icao": "SAN",
-  "vendor": "Signature",
-  "infra": 86,
-  "landing": 0,
-  "min": 140,
-  "notes": "PPR required",
-  "parking": 1005,
-  "price": 11.08,
-  "source": "OVA4BC",
-  "waive": 600
- },
- {
-  "asOf": "2026-10-19",
-  "fbo": "Signature Flight Support",
-  "icao": "SBA",
-  "vendor": "Signature",
-  "infra": 36,
-  "landing": 69,
-  "min": 140,
-  "notes": "Landing fee is airport ($4.62/1,000 lb); verify handling min. Signature tiers: 301+ $8.78 \u00b7 1201+ $8.67",
-  "parking": 180,
-  "price": 8.89,
-  "source": "TXHDH0",
-  "waive": 360
- },
- {
-  "asOf": "2026-09-27",
-  "fbo": "Red Rock Aviation Services",
-  "icao": "SEZ",
-  "infra": 0,
-  "landing": 175,
-  "min": 0,
-  "notes": "Landing/parking not waivable; no handling fee",
-  "parking": 175,
-  "source": "2B2CAI",
-  "waive": 0
- },
- {
-  "asOf": "2026-09-23",
-  "fbo": "ACI Jet South",
-  "icao": "SNA",
-  "vendor": "Avfuel",
-  "infra": 0,
-  "landing": 0,
-  "min": 200,
-  "notes": "1st night parking free",
-  "parking": 255,
-  "price": 7.72,
-  "source": "4V7SII",
-  "waive": 465
- },
- {
-  "asOf": "2026-10-19",
-  "fbo": "North Las Vegas Airport",
-  "icao": "VGT",
-  "brand": "World Fuel",
-  "brandSrc": "GlobalAir",
-  "infra": 0,
-  "landing": 0,
-  "min": 0,
-  "notes": "250 gal waives 1 night parking only; no handling fee",
-  "parking": 100,
-  "price": 8.55,
-  "source": "7HICKX",
-  "waive": 0
- },
- {
-  "asOf": "2026-10-18",
-  "fbo": "Clipper Aviation (home) · fuel: Jet Aviation",
-  "icao": "VNY",
-  "vendor": "AEG Fuels",
-  "infra": 0,
-  "landing": 0,
-  "min": 0,
-  "notes": "Home base. JetFuelX contract (AEG Fuels): $7.42 1–500 gal, $7.32 501–999, $7.22 1,000+",
-  "parking": 0,
-  "price": 7.42,
-  "source": "JetFuelX 10/18",
-  "waive": 0
+  "feeSrc": "2B2CAI",
+  "asOf": "2026-09-24"
  },
  {
   "icao": "APC",
-  "vendor": "Titan",
   "fbo": "Skyservice",
   "min": 100,
   "waive": 200,
@@ -484,9 +358,247 @@ const FBOS=[
   "infra": 0,
   "parking": 200,
   "price": 10.23,
-  "notes": "Titan tiers: 201+ $10.13 \u00b7 401+ $9.93 \u00b7 601+ $9.63 \u00b7 801+ $9.28 \u00b7 1001+ $9.18",
+  "vendor": "Titan",
+  "notes": "Titan tiers: 1+ $10.23 · 201+ $10.13 · 401+ $9.93 · 601+ $9.63 · 801+ $9.28 · 1001+ $9.18 · 2501+ $8.53 · 5001+ $7.38",
   "source": "TXHDH0",
-  "asOf": "2026-10-22"
+  "feeSrc": "TXHDH0",
+  "priceSrc": "TXHDH0",
+  "asOf": "2026-10-19"
+ },
+ {
+  "icao": "BUR",
+  "fbo": "Hollywood Burbank Jet Center",
+  "min": 120,
+  "waive": 175,
+  "landing": 23,
+  "infra": 0,
+  "parking": 210,
+  "price": 7.94,
+  "vendor": "Avfuel",
+  "notes": "Avfuel tiers: 1+ $7.94 · 301+ $7.89 · 501+ $7.84 · 1001+ $7.79 · 2001+ $7.74 · 3001+ $7.69",
+  "source": "N5P1BV",
+  "feeSrc": "N5P1BV",
+  "priceSrc": "N5P1BV",
+  "asOf": "2026-10-23"
+ },
+ {
+  "icao": "CEC",
+  "fbo": "Cal Ore Life Flight",
+  "min": 0,
+  "waive": 0,
+  "landing": 0,
+  "infra": 0,
+  "parking": 15,
+  "source": "6RGK79",
+  "feeSrc": "6RGK79",
+  "asOf": "2026-10-23"
+ },
+ {
+  "icao": "FAT",
+  "fbo": "Signature Aviation",
+  "min": 140,
+  "waive": 420,
+  "landing": 52,
+  "infra": 36,
+  "parking": 180,
+  "price": 7.86,
+  "vendor": "Signature",
+  "notes": "Signature tiers: 1+ $7.86 · 301+ $7.8 · 1201+ $7.68",
+  "source": "IOUWN2",
+  "feeSrc": "IOUWN2",
+  "priceSrc": "IOUWN2",
+  "asOf": "2026-10-28"
+ },
+ {
+  "icao": "HHR",
+  "fbo": "Archer",
+  "min": 136,
+  "waive": 600,
+  "landing": 0,
+  "infra": 40,
+  "parking": 375,
+  "source": "7HICKX",
+  "feeSrc": "7HICKX",
+  "asOf": "2026-10-19"
+ },
+ {
+  "icao": "LHM",
+  "fbo": "Lincoln Regional",
+  "min": 0,
+  "waive": 0,
+  "landing": 0,
+  "infra": 0,
+  "parking": 15,
+  "price": 8.31,
+  "vendor": "Retail",
+  "source": "IOUWN2",
+  "feeSrc": "IOUWN2",
+  "priceSrc": "IOUWN2",
+  "asOf": "2026-10-28"
+ },
+ {
+  "icao": "NUQ",
+  "fbo": "Avports",
+  "min": 150,
+  "waive": 194,
+  "landing": 97,
+  "infra": 0,
+  "parking": 130,
+  "source": "TXHDH0",
+  "feeSrc": "TXHDH0",
+  "asOf": "2026-10-19"
+ },
+ {
+  "icao": "OTH",
+  "fbo": "Coos Aviation",
+  "min": 0,
+  "waive": 0,
+  "landing": 27,
+  "infra": 0,
+  "parking": 75,
+  "price": 7.52,
+  "vendor": "Titan",
+  "notes": "$150 handling waived, no fuel required",
+  "source": "4V7SII",
+  "feeSrc": "4V7SII",
+  "priceSrc": "4V7SII",
+  "asOf": "2026-09-20"
+ },
+ {
+  "icao": "PDX",
+  "fbo": "Atlantic Aviation",
+  "min": 119,
+  "waive": 811,
+  "landing": 78,
+  "infra": 65,
+  "parking": 363,
+  "price": 9.78,
+  "vendor": "AEG",
+  "notes": "AEG tiers: 1+ $9.78 · 401+ $9.71 · 801+ $9.65 · 1201+ $8.96 · 2001+ $8.27",
+  "source": "N5P1BV",
+  "feeSrc": "N5P1BV",
+  "priceSrc": "N5P1BV",
+  "asOf": "2026-10-23"
+ },
+ {
+  "icao": "RNO",
+  "fbo": "Stellar Aviation",
+  "min": 140,
+  "waive": 180,
+  "landing": 72,
+  "infra": 13,
+  "parking": 135,
+  "price": 7.31,
+  "vendor": "AEG",
+  "notes": "AEG tiers: 1+ $7.31 · 501+ $7.26 · 1501+ $7.21",
+  "source": "IOUWN2",
+  "feeSrc": "IOUWN2",
+  "priceSrc": "IOUWN2",
+  "asOf": "2026-10-28"
+ },
+ {
+  "icao": "SAN",
+  "fbo": "Signature Aviation",
+  "min": 140,
+  "waive": 600,
+  "landing": 0,
+  "infra": 86,
+  "parking": 1005,
+  "price": 11.08,
+  "vendor": "Signature",
+  "notes": "Signature tiers: 1+ $11.08 · 501+ $10.97 · 1201+ $10.87",
+  "source": "OVA4BC",
+  "feeSrc": "OVA4BC",
+  "priceSrc": "OVA4BC",
+  "asOf": "2026-10-14"
+ },
+ {
+  "icao": "SBA",
+  "fbo": "Signature Flight Support",
+  "min": 140,
+  "waive": 360,
+  "landing": 69,
+  "infra": 36,
+  "parking": 180,
+  "price": 8.89,
+  "vendor": "Signature",
+  "notes": "Signature tiers: 1+ $8.89 · 301+ $8.78 · 1201+ $8.67",
+  "source": "6RGK79",
+  "feeSrc": "6RGK79",
+  "priceSrc": "TXHDH0",
+  "asOf": "2026-10-23"
+ },
+ {
+  "icao": "SEZ",
+  "fbo": "Red Rock Aviation Services",
+  "min": 0,
+  "waive": 0,
+  "landing": 175,
+  "infra": 0,
+  "parking": 175,
+  "source": "2B2CAI",
+  "feeSrc": "2B2CAI",
+  "asOf": "2026-09-24"
+ },
+ {
+  "icao": "SJC",
+  "fbo": "Signature Aviation",
+  "min": 140,
+  "waive": 450,
+  "landing": 112,
+  "infra": 36,
+  "parking": 220,
+  "price": 8.98,
+  "vendor": "Signature",
+  "notes": "Signature tiers: 1+ $8.98 · 501+ $8.87 · 1201+ $8.76",
+  "source": "IOUWN2",
+  "feeSrc": "IOUWN2",
+  "priceSrc": "IOUWN2",
+  "asOf": "2026-10-28"
+ },
+ {
+  "icao": "SNA",
+  "fbo": "ACI Jet South",
+  "min": 200,
+  "waive": 465,
+  "landing": 0,
+  "infra": 0,
+  "parking": 255,
+  "price": 7.72,
+  "vendor": "Avfuel",
+  "notes": "1 night parking free; Avfuel tiers: 1+ $7.72 · 1000+ $7.22 · 2000+ $7.12",
+  "source": "4V7SII",
+  "feeSrc": "4V7SII",
+  "priceSrc": "4V7SII",
+  "asOf": "2026-09-20"
+ },
+ {
+  "icao": "VGT",
+  "fbo": "North Las Vegas Airport",
+  "min": 0,
+  "waive": 0,
+  "landing": 0,
+  "infra": 0,
+  "parking": 100,
+  "notes": "1 night parking waived with 250 gal",
+  "source": "7HICKX",
+  "feeSrc": "7HICKX",
+  "asOf": "2026-10-19"
+ },
+ {
+  "icao": "VNY",
+  "fbo": "Jet Aviation (home base)",
+  "min": 0,
+  "waive": 0,
+  "landing": 0,
+  "infra": 0,
+  "parking": 0,
+  "price": 7.69,
+  "vendor": "AEG",
+  "notes": "Home base: no FBO fees on Clipper itineraries. AEG tiers: 1+ $7.69 · 501+ $7.59 · 1000+ $7.49 · 1500+ $7.34 · 2000+ $7.24",
+  "source": "IOUWN2",
+  "priceSrc": "IOUWN2",
+  "asOf": "2026-10-28"
  }
 ];
 const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,burn:850,minLand:1200,cap:3611,dv:2,
@@ -553,6 +665,7 @@ function vendorTag(icao){ if(!SHOW_VENDOR) return ""; const v=vendorInfo(icao);
 // stops where fuel is actually being bought but the vendor isn't confirmed
 function vendorGaps(r){ const out=[]; if(!SHOW_VENDOR) return out; if(+trip.startBuy>0){ const v=vendorInfo(trip.start); if(v.status!=="confirmed") out.push({at:trip.start,...v}) }
   r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to||l.ground==="end"||!(row.buy>0)) return; const v=vendorInfo(l.to); if(v.status!=="confirmed") out.push({at:l.to,...v}) }); return out }
+function dayLabel(d){ if(!d) return ""; const [m,dd,y]=d.split("/").map(Number); const dt=new Date(y,m-1,dd); return dt.toLocaleDateString("en-US",{weekday:"short"})+" "+d.slice(0,5) }
 const WB_FRAC=0.85;                                                     // takeoff fuel above 85% of usable capacity -> confirm weight & balance
 const wbLimit=()=>WB_FRAC*(+trip.cap||0);
 function wbStops(r){ const lim=wbLimit(), out=[]; if(!lim) return out;
@@ -579,7 +692,7 @@ function autoPlan(){
   const okStop=f=> trip.extraMode==="min" ? (f.min>0) : true;          // "Min stops only": extra fuel only where a waiver minimum already forces a purchase
   const minLand=+trip.minLand||0;
   for(let guard=0;guard<20;guard++){                                    // 2. every landing must be at or above the minimum landing fuel
-    r=compute(); const bad=r.rows.findIndex((row,i)=>i>0&&trip.legs[i].to&&row.land<minLand); if(bad<0) break;
+    r=compute(); const bad=r.rows.findIndex((row,i)=>trip.legs[i].to&&row.land<minLand); if(bad<0) break;
     let need=minLand - r.rows[bad].land;
     const prior=[startCand(),...trip.legs.slice(0,bad).map((l,i)=>({l,i,f:fboFor(l.to)||{}}))].filter(x=>x.l.to&&x.l.ground!=="end"&&okStop(x.f)).sort(byPrice);
     let got=0; for(const c of prior){ if(need<=0) break; const a=addAt(c,need); need-=a; got+=a }
@@ -615,11 +728,11 @@ function render(){
     const leg=trip.legs[i]; const isEnd=leg.ground==="end";
     const card=document.createElement("div"); card.className="leg"+(isEnd?" end":"");
     const ov= leg.buy!=null && !isEnd ? " (changed)" : "";
-    card.innerHTML=`<div class="leg-head"><span class="muted">Leg ${i+1}${leg.gap?" · not on itinerary":""}</span><span class="route">${from} → ${leg.to||"?"}</span>
+    card.innerHTML=`<div class="leg-head"><span class="muted">Leg ${i+1}${leg.date?" · "+leg.date.slice(0,5):""}${leg.gap?" · not on itinerary":""}</span><span class="route">${from} → ${leg.to||"?"}</span>
         <span class="pill ${row.cls}">${row.check}</span><button class="small" data-del="${i}" title="Remove stop">×</button></div>
       <div class="leg-in">
         <label class="f">To<input type="text" id="to${i}" value="${leg.to}" data-i="${i}" data-k="to" autocapitalize="characters" placeholder="ICAO"></label>
-        <label class="f">Block time<input type="text" id="blk${i}" value="${leg.block}" data-i="${i}" data-k="block" inputmode="numeric" placeholder="105 = 1:05"></label>
+        <label class="f">Block time${leg.blockEst?' <span style="color:var(--warn);font-weight:600">(est.)</span>':""}<input type="text" id="blk${i}" value="${leg.block}" data-i="${i}" data-k="block" inputmode="numeric" placeholder="105 = 1:05"></label>
         <label class="f">On the ground<select id="gr${i}" data-i="${i}" data-k="ground">
           <option value="quick"${leg.ground==="quick"?" selected":""}>Quick turn</option>
           <option value="overnight"${leg.ground==="overnight"?" selected":""}>Overnight</option>
@@ -646,7 +759,7 @@ function render(){
   const ib=$("importBtn"); ib.textContent= st.it? "+ Add another itinerary" : "Add itinerary"; ib.className= st.it? "" : "big primary";
   $("sectIt").classList.toggle("done",st.it); $("sectIt").classList.toggle("next",cur==="it");
   $("sectDay").hidden=!hasPool; $("sectDay").classList.toggle("done",st.day); $("sectDay").classList.toggle("next",cur==="day");
-  const chips=$("dayChips"); chips.innerHTML=""; dayButtons(chips);
+  const chips=$("dayChips"); chips.innerHTML=""; dayButtons(chips); $("dayHint").hidden=buildDays().length<2;
   $("sectFuel").hidden=!hasLegs; $("sectFuel").classList.toggle("done",st.fuel); $("sectFuel").classList.toggle("next",cur==="fuel");
   $("tripLine").textContent= hasLegs? [trip.name, "departing "+(trip.start||"?")].filter(Boolean).join(" · ") : "";
   $("fuelField").classList.toggle("empty",noFuel);
@@ -670,9 +783,12 @@ function render(){
         <td class="num buy" data-edit="start">${galCell("start",sb,sb*LBS,"pbuyS",'data-k="startBuy"')}</td>
         <td class="num">–</td><td class="num muted">–</td><td class="num">${fmt(dep)}${dep>wbLimit()?'<span class="wbflag">W&amp;B</span>':""}</td>`;
       tb.appendChild(tr); }
+    const multiDay=new Set(trip.legs.map(l=>l.date).filter(Boolean)).size>1;
+    if(multiDay){ const d0=trip.legs.find(l=>l.date); const sep=document.createElement("tr"); sep.className="dayrow"; sep.innerHTML=`<td colspan="5">${dayLabel(d0.date)}</td>`; tb.insertBefore(sep,tb.firstChild) }
     r.rows.forEach((row,i)=>{ const leg=trip.legs[i]; if(!leg.to) return; const isEnd=leg.ground==="end";
+      if(multiDay&&i>0&&leg.date&&leg.date!==trip.legs[i-1].date){ const sep=document.createElement("tr"); sep.className="dayrow"; sep.innerHTML=`<td colspan="5">${dayLabel(leg.date)} · overnight at ${trip.legs[i-1].to}</td>`; tb.appendChild(sep) }
       const tr=document.createElement("tr"); if(isEnd||row.buy<=0) tr.className="nobuy";
-      tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>${vendorTag(leg.to)}`}</td>
+      tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>${leg.ground==="overnight"?'<span class="vendor" style="color:var(--fg)">overnight</span>':""}${vendorTag(leg.to)}`}</td>
         <td class="num buy"${isEnd?"":` data-edit="${i}"`}>${isEnd?"–":galCell(i,row.buy,row.lbs,"pbuy"+i,`data-i="${i}" data-k="buy"`)}</td>
         <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
         <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>
@@ -703,15 +819,17 @@ function render(){
   const notes=[];
   r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to) return;
     if(row.cls==="bad") notes.push(`${l.to}: ${row.check} (${row.check==="LOW FUEL"?"land "+fmt(row.land)+" lbs":"depart "+fmt(row.depart)+" lbs"}). Buy more at an earlier stop or less at the one before.`);
-    if(row.cls==="warn"&&!noFuel) notes.push(`${l.to}: buying ${row.buy} gal, minimum is ${row.min}, so the ${money(row.f.waive)} fee is not waived.`);
+    if(row.check==="FEE NOT WAIVED"&&!noFuel) notes.push(`${l.to}: buying ${row.buy} gal, minimum is ${row.min}, so the ${money(row.f.waive)} fee is not waived.`);
+    if(row.check==="GAP — ENTER BLOCK") notes.push(`Leg to ${l.to} isn't on any itinerary (the days don't connect). Enter its block time under Edit legs.`);
     if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in the FBO library, so its fees are unknown.`);
     if(row.f.notes&&row.f.notes!=="Home base") notes.push(`${l.to}: ${row.f.notes}.`);
   });
   if(lastPlanNote) notes.unshift(lastPlanNote);
+  { const est=trip.legs.filter(l=>l.blockEst&&l.to); if(est.length) notes.push(`Block time estimated (flight time + 0:${PAX_TAXI}, passenger itinerary) for ${est.map(l=>l.to).join(", ")} legs. Check under Edit legs.`); }
   if(!noFuel){ const vg=vendorGaps(r); if(vg.length) notes.unshift(`Confirm fuel vendor at ${vg.map(x=>x.at).join(", ")} before ordering.`); }
   if(!noFuel){ const wb=wbStops(r); if(wb.length) notes.unshift(`Confirm weight & balance: takeoff above ${fmt(wbLimit())} lb (${Math.round(WB_FRAC*100)}% of max) at ${wb.map(x=>x.at).join(", ")}.`); }
   if(r.tot.unknownPrice) notes.push("Fuel cost excludes stops with no price on file.");
-  $("notes").innerHTML=notes.map(n=>`<li>${n}</li>`).join("");
+  $("notes").innerHTML=[...new Set(notes)].map(n=>`<li>${n}</li>`).join("");
   renderFbos(); save();
   rendering=false;
 }
@@ -723,7 +841,7 @@ function renderFbos(){
     const n=v=>v==null||v===""?"–":v;
     tr.innerHTML=`<td><b>${f.icao}</b>${f.fromPdf?' <span class="pill warn" title="From the imported itinerary, this session only">PDF</span>':""}</td><td>${f.fbo||""}</td><td class="num">${n(f.min)}</td><td class="num">${n(f.waive)}</td>
       <td class="num">${n(f.landing)}</td><td class="num">${n(f.infra)}</td><td class="num">${n(f.parking)}</td><td class="num">${f.price!=null?f.price.toFixed(2):"–"}</td><td class="vcol">${f.vendor?f.vendor:(f.brand?`<span style="color:var(--warn)">${f.brand}? (FBO brand per ${f.brandSrc||"directory"}; confirm)</span>`:'<span style="color:var(--bad)">unknown</span>')}</td>
-      <td style="white-space:normal">${f.notes||""}</td><td>${f.source||""}</td><td>${f.asOf||""}</td>`;
+      <td style="white-space:normal">${f.notes||""}</td><td>${f.feeSrc&&f.priceSrc&&f.feeSrc!==f.priceSrc?`fees ${f.feeSrc} · fuel ${f.priceSrc}`:(f.source||"")}</td><td>${f.asOf||""}</td>`;
     tb.appendChild(tr);
   });
 }
@@ -734,6 +852,7 @@ document.addEventListener("input",e=>{
   if(t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; const k=t.dataset.k;
     if(k==="buy"){ l.buy= t.value===""? null : +t.value; trip.manual=true }
     else if(k==="to"){ l.to=t.value.toUpperCase() }
+    else if(k==="block"){ l.block=t.value; l.blockEst=false }
     else l[k]=t.value;
     if(k==="ground"&&t.value==="end") l.buy=null;
     plan(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length) }catch(_){} } }
@@ -775,7 +894,15 @@ document.addEventListener("click",e=>{
         if(!/pdf/i.test(blob.type)&&blob.size<2000) throw new Error("not a PDF ("+blob.type+")"); importPdf(new File([blob],"itinerary.pdf",{type:"application/pdf"})); }
       catch(e){ b.textContent="Fetch blocked: "+(e.message||e); } })(); }
   else if(b.id==="reloadBtn") location.href=location.pathname+"?r="+Date.now();
-  else if(b.dataset.day){ loadDay(b.dataset.day); editBuy=null; plan(); go("sectFuel","startFuel") }
+  else if(b.dataset.day){ const k=b.dataset.day, all=buildDays().map(d=>d.key);
+    let keys=(trip.dayKeys||[]).filter(x=>all.includes(x));
+    const tailOf=key=>key.split("|")[0];
+    if(keys.length&&tailOf(keys[0])!==tailOf(k)) keys=[k];             // a different aircraft starts a new plan
+    else if(keys.includes(k)){ if(keys.length>1) keys=keys.filter(x=>x!==k); } else keys.push(k);
+    const oldFirst=(trip.dayKeys||[])[0], fuel=trip.startFuel;
+    loadDays(keys.sort((x,y)=>all.indexOf(x)-all.indexOf(y)));
+    if(trip.dayKeys[0]===oldFirst) trip.startFuel=fuel;            // adding/removing later days keeps fuel on board
+    editBuy=null; plan(); if(trip.startFuel===""||trip.startFuel==null) go("sectFuel","startFuel") }
   else if(b.id==="clearPool"){ pool={legs:[],fbo:[]}; savePool(); fbos=structuredClone(FBOS); currentDayKey=null; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Imported itineraries cleared."; }
   else if(b.id==="copyDebug"){ const ta=$("importDebugText"); ta.select(); navigator.clipboard&&navigator.clipboard.writeText(ta.value).catch(()=>{}); b.textContent="Copied"; }
   else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); currentDayKey=null; editBuy=null; plan(); go("planPanel") }
@@ -815,11 +942,16 @@ function buildSummaryPdf(){
   doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("FUEL ORDERS",M,y+4);
   doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.text("BUY",M+318,y+4,{align:"right"}); doc.text("LAND  /  TAKEOFF",R-10,y+4,{align:"right"}); y+=10;
   const orders=[];
-  { const sf=fboFor(trip.start)||{}; orders.push({vinfo:vendorInfo(trip.start),code:trip.start||"Start",sub:"before departure  •  "+fmt(onBoard)+" lb on board",gal:sb,lbs:sb*LBS,price:sf.price,land:null,to:dep,end:false,bad:false}); }
+  { const sf=fboFor(trip.start)||{}; orders.push({date:(trip.legs.find(l=>l.date)||{}).date,vinfo:vendorInfo(trip.start),code:trip.start||"Start",sub:"before departure  •  "+fmt(onBoard)+" lb on board",gal:sb,lbs:sb*LBS,price:sf.price,land:null,to:dep,end:false,bad:false}); }
   legs.forEach(({l,row})=>{ const end=l.ground==="end"; const f=fboFor(l.to)||{};
     const sub= end? "trip end" : [(row.min?"min "+row.min+" gal":"no minimum"), (row.waived?"saves "+money(row.waived):(row.min>0&&row.buy<row.min?"fee NOT waived":"")), (l.ground==="overnight"?"overnight":"")].filter(Boolean).join("  •  ");
-    orders.push({vinfo:vendorInfo(l.to),code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,price:end?null:f.price,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
-  orders.forEach((o,i)=>{ const h=o.end?36:54; if(y+h>720){ doc.addPage(); y=M }
+    orders.push({date:l.date,prevTo:null,vinfo:vendorInfo(l.to),code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,price:end?null:f.price,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
+  const pdfMulti=new Set(orders.map(o=>o.date).filter(Boolean)).size>1;
+  orders.forEach((o,i)=>{ const h=o.end?36:54;
+    if(pdfMulti&&o.date&&(i===0||o.date!==orders[i-1].date)){ if(y+18+h>720){ doc.addPage(); y=M }
+      doc.setFillColor(225,229,222); doc.rect(M,y,R-M,16,"F"); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); col(GRAY);
+      doc.text(pdfTxt(dayLabel(o.date).toUpperCase()+(i>0?"  \u2022  overnight at "+orders[i-1].code:"")),M+10,y+11); y+=16 }
+    if(y+h>720){ doc.addPage(); y=M }
     if(!o.end&&o.gal>0){ doc.setFillColor(238,243,248); doc.rect(M,y,R-M,h,"F") }
     doc.setDrawColor(...LINE); doc.setLineWidth(1); doc.line(M,y+h,R,y+h);
     if(i>0&&!o.end&&o.gal>0&&orders[i-1].gal>0){ doc.setDrawColor(255,255,255); doc.setLineWidth(3); doc.line(M,y,R,y); doc.setLineWidth(1) }
@@ -872,11 +1004,13 @@ function buildSummaryPdf(){
   { const vg=vendorGaps(r); if(vg.length) notes.push(`CONFIRM FUEL VENDOR before ordering (payment method): ${vg.map(x=>x.at+(x.status==="brand"?" - FBO pours "+x.name+", not confirmed for Clipper":" - nothing on file")).join("; ")}.`); }
   { const wb=wbStops(r); if(wb.length) notes.push(`CONFIRM WEIGHT & BALANCE: takeoff fuel above ${Math.round(WB_FRAC*100)}% of max (${fmt(wbLimit())} lb) at ${wb.map(x=>x.at+" ("+fmt(x.fuel)+" lb)").join(", ")}.`); }
   if(trip.manual) notes.push("This plan includes buy amounts changed by hand.");
+  { const est=trip.legs.filter(l=>l.blockEst&&l.to); if(est.length) notes.push(`Block times estimated from a passenger itinerary (flight time + 0:${PAX_TAXI}) for legs to ${est.map(l=>l.to).join(", ")}.`); }
   if(lastPlanNote) notes.push(lastPlanNote.trim());
   if(priced.length) notes.push("Cheapest fuel today: "+priced.filter((x,i,a)=>a.findIndex(z=>z.to===x.to)===i).map(x=>x.to+" $"+x.f.price.toFixed(2)).join(", ")+".");
   legs.forEach(({l,row})=>{ if(row.cls==="bad") notes.push(`${l.to}: ${row.check}.`); if(l.ground!=="end"&&row.min>0&&row.buy<row.min) notes.push(`${l.to}: buying less than the ${row.min} gal minimum, so the ${money(row.f.waive)} fee is not waived.`);
     if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in the FBO library; fees unknown.`);
-    if(l.ground!=="end"&&row.f.notes&&row.f.notes!=="Home base") notes.push(`${l.to}: ${row.f.notes}.`); });
+    if(l.ground!=="end"&&row.f.notes&&row.f.notes!=="Home base"&&!notes.includes(`${l.to}: ${row.f.notes}.`)) notes.push(`${l.to}: ${row.f.notes}.`);
+    if(row.check==="GAP — ENTER BLOCK") notes.push(`Leg to ${l.to} is not on any itinerary; block time missing.`); });
   if(notes.length){ if(y>680){ doc.addPage(); y=M } doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("NOTES",M,y); y+=14;
     doc.setFont("helvetica","normal"); doc.setFontSize(9.5); col(INK);
     notes.forEach(n=>{ const lines=doc.splitTextToSize(pdfTxt(n),R-M-14); if(y+lines.length*12>740){ doc.addPage(); y=M } doc.text("•",M+2,y); doc.text(lines,M+14,y); y+=lines.length*12+3; }); y+=6; }
@@ -955,6 +1089,20 @@ function parseItinerary(text){
     const p= sumOk? a : b;  if(!p) return;
     const leg={n,from:p.from,to:p.to,block:p.block,depDate:p.depDate,depTime:p.depTime,arrDate:p.arrDate,arrTime:p.arrTime,pax:p.pax||(a||{}).pax||(b||{}).pax,part:(b||{}).part};
     if(leg.from&&leg.to&&leg.block) out.legs.push(leg); });
+  if(!out.legs.length){                       // Passenger itinerary: flight time only (no block, no fees). Block is estimated.
+    const to24=(h,ap)=>{ let [H,M]=h.split(":").map(Number); ap=ap.toLowerCase(); if(ap==="pm"&&H<12)H+=12; if(ap==="am"&&H===12)H=0; return String(H).padStart(2,"0")+":"+String(M).padStart(2,"0") };
+    const pSum={}, pDet={};
+    const pr=/Leg\s*(\d+)\s*:\s*([A-Z0-9]{3,4})\s+(\d\d\/\d\d\/\d{4})\s*-\s*(\d{1,2}:\d\d)\s*(am|pm)\s*[A-Z]{2,4}\s+([A-Z0-9]{3,4})\s+(\d\d\/\d\d\/\d{4})\s*-\s*(\d{1,2}:\d\d)\s*(am|pm)/gi;
+    while((m=pr.exec(t))){ const n=+m[1]; if(!pSum[n]) pSum[n]={from:m[2],depDate:m[3],depTime:to24(m[4],m[5]),to:m[6],arrDate:m[7],arrTime:to24(m[8],m[9])} }
+    const pd=/Leg\s*(\d+)\s*:\s*([A-Z0-9]{3,4})\s+([A-Z0-9]{3,4})\s+\w+day,\s*(\w+)\s+(\d{1,2})\w{0,2},\s*(\d{4}).{0,120}?Flight time:\s*(\d+:\d\d)/g;
+    while((m=pd.exec(t))){ const n=+m[1]; if(!pDet[n]) pDet[n]={from:m[2],to:m[3],date:`${MON[m[4].slice(0,3)]||"01"}/${String(m[5]).padStart(2,"0")}/${m[6]}`,flight:m[7]} }
+    [...new Set([...Object.keys(pSum),...Object.keys(pDet)].map(Number))].sort((a,b)=>a-b).forEach(n=>{
+      const a=pSum[n], d=pDet[n]; if(!d) return;                 // need the flight time from the detail block
+      const sumOk=a&&a.from===d.from&&a.to===d.to;
+      out.legs.push({n,from:d.from,to:d.to,block:blockFmt(hours(d.flight)+PAX_TAXI/60),blockEst:true,flight:d.flight,
+        depDate:sumOk?a.depDate:d.date,depTime:sumOk?a.depTime:null,arrDate:sumOk?a.arrDate:null,arrTime:sumOk?a.arrTime:null}); });
+    if(out.legs.length) out.kind="passenger";
+  }
   const feeRe=/Fees \(([A-Z0-9]{3,4})\): (.*?) \/ Landing fee: \$([\d,]+) \/ Parking fee: \$([\d,]+)(?:, (\d+) nights? waived with (\d+) gals)? \/ Ground handling fee: \$([\d,]+)(?:, waived with (\d+) gals)? \/ Infrastructure fee: \$([\d,]+)(?:, waived with (\d+) gals)?/g;
   while((m=feeRe.exec(t))){ const icao=m[1]; if(out.fees[icao]) continue;
     const num=s=>s==null?null:+s.replace(/,/g,"");
@@ -966,6 +1114,7 @@ function parseItinerary(text){
     out.fuel[icao]={brand:m[3],tiers}; }
   return out;
 }
+const PAX_TAXI=18;   // minutes added to passenger-itinerary flight time to estimate block (Clipper crew sheets run +12 to +30, typically +18)
 function fmtDate(d){ const [m,dd,y]=d.split("/"); return `${y}-${m}-${dd}`; }
 function feesToFbo(icao,f,fuel,id,asOf){
   const e={icao,fbo:f.fbo,landing:f.landing||0,infra:f.infra||0,parking:f.parking||0,min:0,waive:0,notes:[],source:id,asOf,fromPdf:true};
@@ -996,35 +1145,44 @@ function buildDays(){
   days.sort((x,y)=>(x.date||"").slice(6)+(x.date||"").slice(0,5) < (y.date||"").slice(6)+(y.date||"").slice(0,5) ? -1:1);
   return days;
 }
-function loadDay(key){
-  const days=buildDays(); const d=days.find(x=>x.key===key); if(!d) return;
-  const idx=days.indexOf(d); const next=days[idx+1];
-  trip={name:`${d.date} · ${d.tail} · ${d.trips.join("+")}`,start:d.legs[0].from,startFuel:"",burn:trip.burn||850,minLand:trip.minLand||1200,cap:trip.cap||3611,dv:2,endTarget:trip.endTarget||"",legs:[]};
-  d.legs.forEach((l,i)=>{ const last=i===d.legs.length-1;
-    let ground="quick";
-    if(last){ ground= (next&&next.tail===d.tail&&next.legs[0].from===l.to&&l.to!=="VNY")? "overnight":"end"; }
-    trip.legs.push({to:l.to,block:l.block||"",ground,buy:null,gap:!!l.gap}); });
-  currentDayKey=key;
+// Load one or more days (from the itinerary pool) as a single plan. Days are chained in date order; the last stop of each
+// earlier day becomes an overnight, and if the next selected day starts somewhere else a gap leg is inserted.
+function loadDays(keys){
+  const days=buildDays(); const sel=days.filter(d=>keys.includes(d.key)); if(!sel.length) return;
+  const first=sel[0], last=sel[sel.length-1], after=days[days.indexOf(last)+1];
+  const tails=[...new Set(sel.map(d=>d.tail))], trips=[...new Set(sel.flatMap(d=>d.trips))];
+  const span= sel.length>1? `${(first.date||"?").slice(0,5)}–${last.date||"?"}` : (first.date||"?");
+  trip={name:`${span} · ${tails.join("/")} · ${trips.join("+")}`,start:first.legs[0].from,startFuel:"",burn:trip.burn||850,minLand:trip.minLand||1200,cap:trip.cap||3611,dv:2,
+    endTarget:trip.endTarget||"",extraMode:trip.extraMode,dayKeys:sel.map(d=>d.key),legs:[]};
+  sel.forEach((d,di)=>{
+    if(di>0){ const prevTo=trip.legs[trip.legs.length-1].to; if(prevTo!==d.legs[0].from) trip.legs.push({to:d.legs[0].from,block:"",ground:"quick",buy:null,gap:true,date:d.date}); }
+    d.legs.forEach((l,i)=>{ let ground="quick";
+      if(i===d.legs.length-1){ if(di<sel.length-1) ground="overnight";
+        else ground=(after&&after.tail===d.tail&&after.legs[0].from===l.to&&l.to!=="VNY")? "overnight":"end"; }
+      trip.legs.push({to:l.to,block:l.block||"",blockEst:!!l.blockEst,ground,buy:null,gap:!!l.gap,date:d.date}); }); });
 }
-let currentDayKey=null;
+function loadDay(key){ loadDays([key]) }
+let currentDayKey=null;   // legacy; selection now lives in trip.dayKeys
 function dayButtons(container){
   const days=buildDays();
-  days.forEach(d=>{ const bt=document.createElement("button"); bt.className="chip"+(d.key===currentDayKey?" primary":""); bt.textContent=d.label; bt.dataset.day=d.key; container.appendChild(bt) });
+  days.forEach(d=>{ const bt=document.createElement("button"); bt.className="chip"+((trip.dayKeys||[]).includes(d.key)?" primary":""); bt.textContent=d.label; bt.dataset.day=d.key; container.appendChild(bt) });
   if(days.length){ const cl=document.createElement("button"); cl.className="link"; cl.style.marginLeft="4px"; cl.textContent="Clear itineraries"; cl.id="clearPool"; container.appendChild(cl); }
 }
 function applyItinerary(it){
   if(!it.legs.length) throw new Error("No legs found. Is this a Clipper crew or passenger itinerary?");
   // merge legs into the pool (replace any earlier copy of the same trip)
   pool.legs=pool.legs.filter(l=>l.tripId!==it.id);
-  it.legs.forEach(l=>pool.legs.push({tripId:it.id||"?",tail:it.aircraft||"?",n:l.n,from:l.from,to:l.to,block:l.block,depDate:l.depDate,depTime:l.depTime,arrDate:l.arrDate,arrTime:l.arrTime}));
+  it.legs.forEach(l=>pool.legs.push({tripId:it.id||"?",tail:it.aircraft||"?",n:l.n,from:l.from,to:l.to,block:l.block,blockEst:!!l.blockEst,depDate:l.depDate,depTime:l.depTime,arrDate:l.arrDate,arrTime:l.arrTime}));
   // merge fees
   const changes=[];
   Object.entries(it.fees).forEach(([icao,f])=>{
     const e=feesToFbo(icao,f,it.fuel[icao],it.id,fmtDate(it.legs[0].depDate||"01/01/"+new Date().getFullYear()));
+    if(!e.notes) delete e.notes;                                   // an itinerary without a fuel line must not wipe notes already on file
     const idx=fbos.findIndex(x=>x.icao===icao); const old=idx>=0?fbos[idx]:null;
     if(!old) changes.push(`${icao} new`);
     else if(!old.fromPdf&&(old.min!==e.min||old.waive!==e.waive||old.landing!==e.landing||old.infra!==e.infra||old.parking!==e.parking)) changes.push(`${icao} changed (was ${old.min} gal / $${old.waive})`);
-    if(idx>=0) fbos[idx]=Object.assign({},old,e); else fbos.push(e);
+    const older= old&&old.asOf&&e.asOf&&e.asOf<old.asOf;              // itineraries are the source of truth; the newest trip date wins
+    if(idx>=0) fbos[idx]= older? Object.assign({},e,old) : Object.assign({},old,e); else fbos.push(e);
     pool.fbo=(pool.fbo||[]).filter(x=>x.icao!==icao); pool.fbo.push(e);
   });
   savePool();
@@ -1057,7 +1215,7 @@ function importText(text,label){
   try{
     const it=parseItinerary(text); const changes=applyItinerary(it); render();
     const feeApts=Object.keys(it.fees); const days=buildDays();
-    msg.textContent=`Imported ${it.id||label}: ${it.legs.length} legs, fees for ${feeApts.length?feeApts.join(", "):"no airports"}.`+(changes.length?` Library differences: ${changes.join("; ")}. Send this itinerary to Craig to update the shared list.`:"")+(days.length>1?` ${days.length} days on file, pick one in step 2.`:"");
+    msg.textContent=`Imported ${it.id||label}: ${it.legs.length} legs, fees for ${feeApts.length?feeApts.join(", "):"no airports"}.`+(changes.length?` Library differences: ${changes.join("; ")}. Send this itinerary to Craig to update the shared list.`:"")+(days.length>1?` ${days.length} days on file, pick one in step 2.`:"")+(it.kind==="passenger"?` Passenger itinerary: it has no fees (the FBO library is used) and only flight times, so block times are estimated as flight time + 0:${PAX_TAXI}. Check them under Edit legs.`:"");
     go("sectFuel","startFuel");
   }catch(e){ msg.className="err"; msg.textContent="Import failed: "+(e.message||e)+" — the extracted text is shown below; copy it and send it to Craig.";
     dbg.hidden=false; $("importDebugText").value=text.slice(0,20000); }
