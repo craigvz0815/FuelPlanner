@@ -186,6 +186,13 @@ table.plan .vendor.unknown{color:var(--bad);font-weight:700}
 .vendbar{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
 .vcol{display:none}
 table.plan tr.dayrow td{background:var(--calc);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--muted);padding:6px 8px;text-transform:uppercase;letter-spacing:.06em;white-space:normal}
+table.plan th.fo,table.plan td.fo{text-align:left;white-space:normal;font-family:var(--sans);font-size:13px;font-weight:600;min-width:150px}
+table.plan td.fo .aux{color:var(--accent)}
+table.plan tr.forow td{padding:0 6px 10px;border-top:0;font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--accent);white-space:normal}
+table.plan tr.forow td small{font-weight:600;font-size:10px;letter-spacing:.06em;color:var(--muted);margin-right:6px}
+table.plan tr.hasfo td{border-bottom:0}
+@media (max-width:640px){ table.plan .fo{display:none} }
+@media (min-width:641px){ table.plan tr.forow{display:none} table.plan tr.hasfo td{border-bottom:1px solid var(--line)} }
 .sharerow{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
 .pdfview{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;grid-template-rows:auto 1fr auto}
 .pv-bar{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -206,7 +213,7 @@ table.plan tr.dayrow td{background:var(--calc);font-family:var(--sans);font-size
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v42</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v43</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -270,7 +277,7 @@ table.plan tr.dayrow td{background:var(--calc);font-family:var(--sans);font-size
   <div class="wbbar" id="wbBar" hidden></div>
   <div class="manualbar" id="manualBar" hidden><span>You changed the plan by hand.</span><button id="resetPlan" class="small">Reset to suggested</button></div>
   <div class="startline" id="startLine"></div>
-  <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Fees saved</th><th class="num">Land</th><th class="num">Takeoff</th></tr></thead><tbody></tbody></table></div>
+  <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Fees saved</th><th class="num">Land</th><th class="num">Takeoff</th><th class="fo">Fuel order</th></tr></thead><tbody></tbody></table></div>
   <p class="hint">Tap any buy amount to change it.</p>
   <div class="legend"><span><span class="sw warn">MIN</span>waiver minimum</span><span><span class="sw ok">$</span>cheapest fuel</span><span><span class="sw bad">!</span>problem</span></div>
   <div class="planfoot" id="planFoot" style="margin-top:12px"></div>
@@ -306,6 +313,7 @@ table.plan tr.dayrow td{background:var(--calc);font-family:var(--sans);font-size
     <label class="f">Burn (lbs per block hr)<input type="number" id="burn" step="10"></label>
     <label class="f">Min landing fuel (lbs)<input type="number" id="minLand" step="10"></label>
     <label class="f">Usable capacity (lbs)<input type="number" id="cap" step="10"></label>
+    <label class="f">Mains capacity (lbs)<input type="number" id="mainsCap" step="10"></label>
   </div>
   <p class="muted" style="margin:8px 0 0">King Air 350 defaults. Changes stay on this phone.</p>
   </details>
@@ -601,17 +609,18 @@ const FBOS=[
   "asOf": "2026-10-28"
  }
 ];
-const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,burn:850,minLand:1200,cap:3611,dv:2,
+const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,burn:850,minLand:1200,cap:3611,mainsCap:2550,dv:2,
  legs:[{to:"SBA",block:"0:42",ground:"quick",buy:null},{to:"NUQ",block:"1:18",ground:"quick",buy:null},
        {to:"HHR",block:"1:24",ground:"quick",buy:null},{to:"VGT",block:"1:12",ground:"quick",buy:null},
        {to:"VNY",block:"1:18",ground:"end",buy:null}]};
 
-const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",burn:850,minLand:1200,cap:3611,dv:2,legs:[{to:"",block:"",ground:"quick",buy:null}]};
+const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",burn:850,minLand:1200,cap:3611,mainsCap:2550,dv:2,legs:[{to:"",block:"",ground:"quick",buy:null}]};
 let fbos=structuredClone(FBOS), trip;   // fbos is replaced by the shared library once db answers
 function load(){
   try{ trip=JSON.parse(localStorage.getItem("cfp.trip")) }catch(e){}
   if(!trip||!Array.isArray(trip.legs)) trip=structuredClone(DEFAULT_TRIP);
   // v34 defaults: 850 lb/hr burn, 1,200 lb min landing. Phones still on the old defaults (700 / 1,000) move up once; values someone set by hand stay.
+  if(!trip.mainsCap) trip.mainsCap=2550;
   if(trip.dv!==2){ if(+trip.burn===700||!trip.burn) trip.burn=850; if(+trip.minLand===1000||!trip.minLand) trip.minLand=1200; trip.dv=2 }
 }
 function save(){ try{ localStorage.setItem("cfp.trip",JSON.stringify(trip)) }catch(e){} }
@@ -666,6 +675,15 @@ function vendorTag(icao){ if(!SHOW_VENDOR) return ""; const v=vendorInfo(icao);
 function vendorGaps(r){ const out=[]; if(!SHOW_VENDOR) return out; if(+trip.startBuy>0){ const v=vendorInfo(trip.start); if(v.status!=="confirmed") out.push({at:trip.start,...v}) }
   r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to||l.ground==="end"||!(row.buy>0)) return; const v=vendorInfo(l.to); if(v.status!=="confirmed") out.push({at:l.to,...v}) }); return out }
 function dayLabel(d){ if(!d) return ""; const [m,dd,y]=d.split("/").map(Number); const dt=new Date(y,m-1,dd); return dt.toLocaleDateString("en-US",{weekday:"short"})+" "+d.slice(0,5) }
+// Fueler instruction for one departure. L = fuel on board before fueling (assumed in the mains first), T = takeoff fuel.
+// Above mains capacity: top off the mains and split the rest evenly between the two aux tanks (less anything already in the aux).
+function fuelOrder(L,T,gal){ const mc=+trip.mainsCap||2550; if(!(gal>0)) return null;
+  if(T<=mc) return {txt:`${gal} gal in mains`,short:`${gal} gal mains`,aux:false};
+  const auxAdd=Math.max(0,(T-mc)-Math.max(0,L-mc)), per=Math.ceil(auxAdd/LBS/2), top=L<mc;
+  const txt=(top?"Top off mains":"Mains already full")+(per>0?` + ${per} gal each aux`:"");
+  return {txt,short:txt,aux:true,per,top} }
+function foCell(o){ return o? (o.aux?`<span class="aux">${o.txt}</span>`:o.txt) : '<span class="muted">–</span>' }
+function foRow(tb,tr,o){ if(!o||!o.aux) return; tr.classList.add("hasfo"); const r=document.createElement("tr"); r.className="forow"+(tr.classList.contains("nobuy")?" nobuy":""); r.innerHTML=`<td colspan="6"><small>FUEL ORDER</small>${o.txt}</td>`; tb.appendChild(r) }
 const WB_FRAC=0.85;                                                     // takeoff fuel above 85% of usable capacity -> confirm weight & balance
 const wbLimit=()=>WB_FRAC*(+trip.cap||0);
 function wbStops(r){ const lim=wbLimit(), out=[]; if(!lim) return out;
@@ -720,7 +738,7 @@ let editBuy=null, rendering=false;
 function render(){
   rendering=true;
   $("tripName").value=trip.name||""; $("startApt").value=trip.start||""; $("startFuel").value=trip.startFuel;
-  $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap; $("endTarget").value=trip.endTarget||"";
+  $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap; $("mainsCap").value=trip.mainsCap||2550; $("endTarget").value=trip.endTarget||"";
   const r=compute(); const list=$("legList"); list.innerHTML=""; const noFuel=(trip.startFuel===""||trip.startFuel==null);
   const hasLegs=trip.legs.some(l=>l.to), hasPool=pool.legs.length>0;
   let from=trip.start;
@@ -750,7 +768,7 @@ function render(){
     list.appendChild(card); from=leg.to;
   });
   $("legsSummary").innerHTML= hasLegs? `Edit legs <small>· ${trip.start||"?"} → ${trip.legs.filter(l=>l.to).map(l=>l.to).join(" → ")}</small>` : "Edit legs";
-  $("acSummary").innerHTML=`Aircraft settings <small>· ${fmt(+trip.burn||0)} lb/hr · ${fmt(+trip.minLand||0)} min landing · ${fmt(+trip.cap||0)} cap</small>`;
+  $("acSummary").innerHTML=`Aircraft settings <small>· ${fmt(+trip.burn||0)} lb/hr · ${fmt(+trip.minLand||0)} min landing · ${fmt(+trip.cap||0)} cap · ${fmt(+trip.mainsCap||2550)} mains</small>`;
 
   // ---- start card: three steps ----
   const worst=r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="bad")||r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="warn");
@@ -777,23 +795,25 @@ function render(){
       ? `<input type="number" id="${id}" value="${gal}" ${attrs} step="5" min="0" inputmode="numeric" aria-label="Gallons to buy">`
       : (gal>0?`<span class="gal">${gal} gal</span><small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(lbs)} lb</small>`:`<span class="gal">no fuel</span>`);
     { const sb=+trip.startBuy||0, dep=(+trip.startFuel||0)+sb*LBS;
-      $("startLine").innerHTML=`<span>Suggested departure fuel at ${trip.start||"start"}</span><b>${fmt(dep)} lb</b><span>${sb>0?`add <b style="font-size:15px">${sb} gal</b> (${fmt(sb*LBS)} lb) to the ${fmt(+trip.startFuel||0)} on board${SHOW_VENDOR&&(fboFor(trip.start)||{}).vendor?" · order via "+fboFor(trip.start).vendor:""}`:"no fuel needed before departure"}</span>`;
+      $("startLine").innerHTML=`<span>Suggested departure fuel at ${trip.start||"start"}</span><b>${fmt(dep)} lb</b><span>${sb>0?`add <b style="font-size:15px">${sb} gal</b> (${fmt(sb*LBS)} lb) to the ${fmt(+trip.startFuel||0)} on board${(()=>{const o=fuelOrder(+trip.startFuel||0,dep,sb); return o&&o.aux?`<br><b style="font-size:15px">${o.txt}</b>`:""})()}${SHOW_VENDOR&&(fboFor(trip.start)||{}).vendor?" · order via "+fboFor(trip.start).vendor:""}`:"no fuel needed before departure"}</span>`;
       const tr=document.createElement("tr"); if(sb<=0) tr.className="nobuy";
       tr.innerHTML=`<td class="stop">${trip.start||"—"}<span class="minref" style="color:var(--muted);background:var(--calc)">start</span>${vendorTag(trip.start)}</td>
         <td class="num buy" data-edit="start">${galCell("start",sb,sb*LBS,"pbuyS",'data-k="startBuy"')}</td>
-        <td class="num">–</td><td class="num muted">–</td><td class="num">${fmt(dep)}${dep>wbLimit()?'<span class="wbflag">W&amp;B</span>':""}</td>`;
-      tb.appendChild(tr); }
+        <td class="num">–</td><td class="num muted">–</td><td class="num">${fmt(dep)}${dep>wbLimit()?'<span class="wbflag">W&amp;B</span>':""}</td>
+        <td class="fo">${foCell(fuelOrder(+trip.startFuel||0,dep,sb))}</td>`;
+      tb.appendChild(tr); foRow(tb,tr,fuelOrder(+trip.startFuel||0,dep,sb)); }
     const multiDay=new Set(trip.legs.map(l=>l.date).filter(Boolean)).size>1;
-    if(multiDay){ const d0=trip.legs.find(l=>l.date); const sep=document.createElement("tr"); sep.className="dayrow"; sep.innerHTML=`<td colspan="5">${dayLabel(d0.date)}</td>`; tb.insertBefore(sep,tb.firstChild) }
+    if(multiDay){ const d0=trip.legs.find(l=>l.date); const sep=document.createElement("tr"); sep.className="dayrow"; sep.innerHTML=`<td colspan="6">${dayLabel(d0.date)}</td>`; tb.insertBefore(sep,tb.firstChild) }
     r.rows.forEach((row,i)=>{ const leg=trip.legs[i]; if(!leg.to) return; const isEnd=leg.ground==="end";
-      if(multiDay&&i>0&&leg.date&&leg.date!==trip.legs[i-1].date){ const sep=document.createElement("tr"); sep.className="dayrow"; sep.innerHTML=`<td colspan="5">${dayLabel(leg.date)} · overnight at ${trip.legs[i-1].to}</td>`; tb.appendChild(sep) }
+      if(multiDay&&i>0&&leg.date&&leg.date!==trip.legs[i-1].date){ const sep=document.createElement("tr"); sep.className="dayrow"; sep.innerHTML=`<td colspan="6">${dayLabel(leg.date)} · overnight at ${trip.legs[i-1].to}</td>`; tb.appendChild(sep) }
       const tr=document.createElement("tr"); if(isEnd||row.buy<=0) tr.className="nobuy";
       tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>${leg.ground==="overnight"?'<span class="vendor" style="color:var(--fg)">overnight</span>':""}${vendorTag(leg.to)}`}</td>
         <td class="num buy"${isEnd?"":` data-edit="${i}"`}>${isEnd?"–":galCell(i,row.buy,row.lbs,"pbuy"+i,`data-i="${i}" data-k="buy"`)}</td>
         <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
         <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>
-        <td class="num">${isEnd?"–":fmt(row.land+row.lbs)+(row.land+row.lbs>wbLimit()?'<span class="wbflag">W&amp;B</span>':"")}</td>`;
-      tb.appendChild(tr); });
+        <td class="num">${isEnd?"–":fmt(row.land+row.lbs)+(row.land+row.lbs>wbLimit()?'<span class="wbflag">W&amp;B</span>':"")}</td>
+        <td class="fo">${isEnd?"":foCell(fuelOrder(row.land,row.land+row.lbs,row.buy))}</td>`;
+      tb.appendChild(tr); if(!isEnd) foRow(tb,tr,fuelOrder(row.land,row.land+row.lbs,row.buy)); });
     { const vg=vendorGaps(r); $("vendBar").hidden=!vg.length;
       if(vg.length) $("vendBar").innerHTML=`<span>⚠</span><span><b>Confirm fuel vendor before ordering</b> so the right card is used: ${vg.map(x=>x.at+(x.status==="brand"?" (FBO pours "+x.name+", not confirmed for Clipper)":" (nothing on file)")).join(", ")}.</span>`; }
     { const wb=wbStops(r); $("wbBar").hidden=!wb.length;
@@ -856,7 +876,7 @@ document.addEventListener("input",e=>{
     else l[k]=t.value;
     if(k==="ground"&&t.value==="end") l.buy=null;
     plan(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length) }catch(_){} } }
-  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",endTarget:"endTarget"};
+  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",mainsCap:"mainsCap",endTarget:"endTarget"};
     if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; plan(); const el=$(keep); if(el) el.focus() } }
 });
 document.addEventListener("focusout",e=>{ const t=e.target; if(rendering) return;
@@ -888,7 +908,7 @@ document.addEventListener("click",e=>{
   else if(b.id==="modeCheap"||b.id==="modeMin"){ trip.extraMode= b.id==="modeMin"?"min":"cheap"; trip.manual=false; plan() }
   else if(b.id==="pasteBtn") pasteFromClipboard();
   else if(b.id==="pasteToggle") showPastePrompt($("pasteBox").hidden,true);
-  else if(b.id==="manualBtn"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,endTarget:trip.endTarget||""}); currentDayKey=null; $("legsDetails").open=true; render(); go("legsDetails","to0") }
+  else if(b.id==="manualBtn"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,mainsCap:trip.mainsCap,endTarget:trip.endTarget||""}); currentDayKey=null; $("legsDetails").open=true; render(); go("legsDetails","to0") }
   else if(b.dataset.fetch){ const url=b.dataset.fetch; b.textContent="Fetching…"; b.disabled=true;
     (async()=>{ try{ const r=await fetch(url,{credentials:"include",mode:"cors"}); if(!r.ok) throw new Error("HTTP "+r.status); const blob=await r.blob();
         if(!/pdf/i.test(blob.type)&&blob.size<2000) throw new Error("not a PDF ("+blob.type+")"); importPdf(new File([blob],"itinerary.pdf",{type:"application/pdf"})); }
@@ -906,7 +926,7 @@ document.addEventListener("click",e=>{
   else if(b.id==="clearPool"){ pool={legs:[],fbo:[]}; savePool(); fbos=structuredClone(FBOS); currentDayKey=null; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Imported itineraries cleared."; }
   else if(b.id==="copyDebug"){ const ta=$("importDebugText"); ta.select(); navigator.clipboard&&navigator.clipboard.writeText(ta.value).catch(()=>{}); b.textContent="Copied"; }
   else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); currentDayKey=null; editBuy=null; plan(); go("planPanel") }
-  else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,endTarget:trip.endTarget||""}); currentDayKey=null; editBuy=null; $("importMsg").hidden=true; render(); window.scrollTo({top:0,behavior:"smooth"}) }
+  else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,mainsCap:trip.mainsCap,endTarget:trip.endTarget||""}); currentDayKey=null; editBuy=null; $("importMsg").hidden=true; render(); window.scrollTo({top:0,behavior:"smooth"}) }
 });
 if(matchMedia("(max-width:640px)").matches) $("libDetails").open=false;
 // ---- Summary PDF (jsPDF, built on the phone; nothing is uploaded) ----
@@ -942,10 +962,10 @@ function buildSummaryPdf(){
   doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("FUEL ORDERS",M,y+4);
   doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.text("BUY",M+318,y+4,{align:"right"}); doc.text("LAND  /  TAKEOFF",R-10,y+4,{align:"right"}); y+=10;
   const orders=[];
-  { const sf=fboFor(trip.start)||{}; orders.push({date:(trip.legs.find(l=>l.date)||{}).date,vinfo:vendorInfo(trip.start),code:trip.start||"Start",sub:"before departure  •  "+fmt(onBoard)+" lb on board",gal:sb,lbs:sb*LBS,price:sf.price,land:null,to:dep,end:false,bad:false}); }
+  { const sf=fboFor(trip.start)||{}; orders.push({fo:fuelOrder(onBoard,dep,sb),date:(trip.legs.find(l=>l.date)||{}).date,vinfo:vendorInfo(trip.start),code:trip.start||"Start",sub:"before departure  •  "+fmt(onBoard)+" lb on board",gal:sb,lbs:sb*LBS,price:sf.price,land:null,to:dep,end:false,bad:false}); }
   legs.forEach(({l,row})=>{ const end=l.ground==="end"; const f=fboFor(l.to)||{};
     const sub= end? "trip end" : [(row.min?"min "+row.min+" gal":"no minimum"), (row.waived?"saves "+money(row.waived):(row.min>0&&row.buy<row.min?"fee NOT waived":"")), (l.ground==="overnight"?"overnight":"")].filter(Boolean).join("  •  ");
-    orders.push({date:l.date,prevTo:null,vinfo:vendorInfo(l.to),code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,price:end?null:f.price,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
+    orders.push({fo:end?null:fuelOrder(row.land,row.land+row.lbs,row.buy),date:l.date,prevTo:null,vinfo:vendorInfo(l.to),code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,price:end?null:f.price,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
   const pdfMulti=new Set(orders.map(o=>o.date).filter(Boolean)).size>1;
   orders.forEach((o,i)=>{ const h=o.end?36:54;
     if(pdfMulti&&o.date&&(i===0||o.date!==orders[i-1].date)){ if(y+18+h>720){ doc.addPage(); y=M }
@@ -963,7 +983,8 @@ function buildSummaryPdf(){
     // the order
     if(!o.end){
       if(o.gal>0){ doc.setFont("helvetica","bold"); doc.setFontSize(30); col(o.below?RED:NAVY); doc.text(String(o.gal),M+290,mid+10,{align:"right"});
-        doc.setFontSize(13); doc.text("gal",M+294,mid+10); }
+        doc.setFontSize(13); doc.text("gal",M+294,mid+10);
+        if(o.fo&&o.fo.aux){ doc.setFont("helvetica","bold"); doc.setFontSize(8.5); col(NAVY); doc.text(pdfTxt(o.fo.txt.toUpperCase()),M+318,mid+22,{align:"right"}) } }
       else { doc.setFont("helvetica","bold"); doc.setFontSize(18); col(GRAY); doc.text("no fuel",M+318,mid+6,{align:"right"}) }
       doc.setFont("helvetica","normal"); doc.setFontSize(9); col(GRAY);
       const meta=[o.price?"$"+o.price.toFixed(2)+"/gal":"", o.gal>0?fmt(o.lbs)+" lb":""].filter(Boolean);
@@ -1152,7 +1173,7 @@ function loadDays(keys){
   const first=sel[0], last=sel[sel.length-1], after=days[days.indexOf(last)+1];
   const tails=[...new Set(sel.map(d=>d.tail))], trips=[...new Set(sel.flatMap(d=>d.trips))];
   const span= sel.length>1? `${(first.date||"?").slice(0,5)}–${last.date||"?"}` : (first.date||"?");
-  trip={name:`${span} · ${tails.join("/")} · ${trips.join("+")}`,start:first.legs[0].from,startFuel:"",burn:trip.burn||850,minLand:trip.minLand||1200,cap:trip.cap||3611,dv:2,
+  trip={name:`${span} · ${tails.join("/")} · ${trips.join("+")}`,start:first.legs[0].from,startFuel:"",burn:trip.burn||850,minLand:trip.minLand||1200,cap:trip.cap||3611,mainsCap:trip.mainsCap||2550,dv:2,
     endTarget:trip.endTarget||"",extraMode:trip.extraMode,dayKeys:sel.map(d=>d.key),legs:[]};
   sel.forEach((d,di)=>{
     if(di>0){ const prevTo=trip.legs[trip.legs.length-1].to; if(prevTo!==d.legs[0].from) trip.legs.push({to:d.legs[0].from,block:"",ground:"quick",buy:null,gap:true,date:d.date}); }
