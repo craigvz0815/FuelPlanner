@@ -177,6 +177,14 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 .wbbar b{font-weight:700}
 .wbflag{display:block;width:max-content;margin:3px 0 0 auto;font-family:var(--sans);font-weight:700;font-size:10px;letter-spacing:.04em;color:var(--warn);background:var(--warn-bg);padding:1px 5px;border-radius:4px}
 .stickybar .pill.wb{background:var(--warn-bg);color:var(--warn)}
+table.plan .vendor{display:block;margin-top:3px;font-family:var(--sans);font-weight:500;font-size:11px;line-height:1.25;color:var(--muted);white-space:normal;max-width:84px}
+table.plan td.stop{white-space:normal}
+@media (max-width:380px){ table.plan td,table.plan th{padding:8px 3px} table.plan td.stop{font-size:16px} table.plan td.buy{font-size:15px} table.plan td.num{font-size:13px} }
+table.plan .vendor b{color:var(--fg);font-weight:600}
+table.plan .vendor.unconf{color:var(--warn)} table.plan .vendor.unconf b{color:var(--warn);font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.04em}
+table.plan .vendor.unknown{color:var(--bad);font-weight:700}
+.vendbar{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+.vcol{display:none}
 .sharerow{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
 .pdfview{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;grid-template-rows:auto 1fr auto}
 .pv-bar{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -197,7 +205,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v36</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v39</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -256,6 +264,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
 
 <section class="panel" id="planPanel" hidden>
   <h2>Fuel plan</h2>
+  <div class="wbbar vendbar" id="vendBar" hidden></div>
   <div class="wbbar" id="wbBar" hidden></div>
   <div class="manualbar" id="manualBar" hidden><span>You changed the plan by hand.</span><button id="resetPlan" class="small">Reset to suggested</button></div>
   <div class="startline" id="startLine"></div>
@@ -307,7 +316,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <table id="fbos">
     <thead><tr>
       <th>ICAO</th><th>FBO</th><th class="num">Min gal</th><th class="num">Waivable fee $</th>
-      <th class="num">Landing $</th><th class="num">Infra $</th><th class="num">Parking $/night</th><th class="num">Fuel $/gal</th><th>Notes</th><th>Source</th><th style="min-width:95px">As of</th>
+      <th class="num">Landing $</th><th class="num">Infra $</th><th class="num">Parking $/night</th><th class="num">Fuel $/gal</th><th class="vcol">Fuel vendor</th><th>Notes</th><th>Source</th><th style="min-width:95px">As of</th>
     </tr></thead>
     <tbody id="fboBody"></tbody>
   </table>
@@ -342,6 +351,8 @@ const FBOS=[
   "asOf": "2026-10-19",
   "fbo": "Archer",
   "icao": "HHR",
+  "brand": "Titan",
+  "brandSrc": "AirNav (Archer: Titan Contract Fuel, Multi Service card)",
   "infra": 40,
   "landing": 0,
   "min": 136,
@@ -355,6 +366,8 @@ const FBOS=[
   "asOf": "2026-10-19",
   "fbo": "Avports",
   "icao": "NUQ",
+  "brand": "World Fuel",
+  "brandSrc": "Acukwik",
   "infra": 0,
   "landing": 97,
   "min": 150,
@@ -368,6 +381,7 @@ const FBOS=[
   "asOf": "2026-09-23",
   "fbo": "Coos Aviation",
   "icao": "OTH",
+  "vendor": "Titan",
   "infra": 0,
   "landing": 27,
   "min": 0,
@@ -381,6 +395,7 @@ const FBOS=[
   "asOf": "2026-10-15",
   "fbo": "Signature Aviation",
   "icao": "SAN",
+  "vendor": "Signature",
   "infra": 86,
   "landing": 0,
   "min": 140,
@@ -394,6 +409,7 @@ const FBOS=[
   "asOf": "2026-10-19",
   "fbo": "Signature Flight Support",
   "icao": "SBA",
+  "vendor": "Signature",
   "infra": 36,
   "landing": 69,
   "min": 140,
@@ -419,6 +435,7 @@ const FBOS=[
   "asOf": "2026-09-23",
   "fbo": "ACI Jet South",
   "icao": "SNA",
+  "vendor": "Avfuel",
   "infra": 0,
   "landing": 0,
   "min": 200,
@@ -432,6 +449,8 @@ const FBOS=[
   "asOf": "2026-10-19",
   "fbo": "North Las Vegas Airport",
   "icao": "VGT",
+  "brand": "World Fuel",
+  "brandSrc": "GlobalAir",
   "infra": 0,
   "landing": 0,
   "min": 0,
@@ -445,6 +464,7 @@ const FBOS=[
   "asOf": "2026-10-18",
   "fbo": "Clipper Aviation (home) · fuel: Jet Aviation",
   "icao": "VNY",
+  "vendor": "AEG Fuels",
   "infra": 0,
   "landing": 0,
   "min": 0,
@@ -456,6 +476,7 @@ const FBOS=[
  },
  {
   "icao": "APC",
+  "vendor": "Titan",
   "fbo": "Skyservice",
   "min": 100,
   "waive": 200,
@@ -522,6 +543,16 @@ function compute(){
   return {rows,tot,final:fuel};
 }
 
+// Preferred fuel vendor: "confirmed" = named on a Clipper itinerary (or set by Craig); "brand" = only the FBO's fuel brand from public directories; "unknown" = nothing on file.
+const SHOW_VENDOR=false;   // preferred fuel vendor display parked 10/21/26 (vendor list + payment methods not settled). Data stays in FBOS; set true to bring back.
+function vendorInfo(icao){ const f=fboFor(icao)||{}; if(f.vendor) return {name:f.vendor,status:"confirmed"}; if(f.brand) return {name:f.brand,status:"brand",src:f.brandSrc}; return {name:"",status:"unknown"} }
+function vendorTag(icao){ if(!SHOW_VENDOR) return ""; const v=vendorInfo(icao);
+  if(v.status==="confirmed") return `<span class="vendor">via <b>${v.name}</b></span>`;
+  if(v.status==="brand") return `<span class="vendor unconf">${v.name}? <b>confirm</b></span>`;
+  return `<span class="vendor unknown">vendor unknown</span>` }
+// stops where fuel is actually being bought but the vendor isn't confirmed
+function vendorGaps(r){ const out=[]; if(!SHOW_VENDOR) return out; if(+trip.startBuy>0){ const v=vendorInfo(trip.start); if(v.status!=="confirmed") out.push({at:trip.start,...v}) }
+  r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to||l.ground==="end"||!(row.buy>0)) return; const v=vendorInfo(l.to); if(v.status!=="confirmed") out.push({at:l.to,...v}) }); return out }
 const WB_FRAC=0.85;                                                     // takeoff fuel above 85% of usable capacity -> confirm weight & balance
 const wbLimit=()=>WB_FRAC*(+trip.cap||0);
 function wbStops(r){ const lim=wbLimit(), out=[]; if(!lim) return out;
@@ -633,20 +664,22 @@ function render(){
       ? `<input type="number" id="${id}" value="${gal}" ${attrs} step="5" min="0" inputmode="numeric" aria-label="Gallons to buy">`
       : (gal>0?`<span class="gal">${gal} gal</span><small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(lbs)} lb</small>`:`<span class="gal">no fuel</span>`);
     { const sb=+trip.startBuy||0, dep=(+trip.startFuel||0)+sb*LBS;
-      $("startLine").innerHTML=`<span>Suggested departure fuel at ${trip.start||"start"}</span><b>${fmt(dep)} lb</b><span>${sb>0?`add <b style="font-size:15px">${sb} gal</b> (${fmt(sb*LBS)} lb) to the ${fmt(+trip.startFuel||0)} on board`:"no fuel needed before departure"}</span>`;
+      $("startLine").innerHTML=`<span>Suggested departure fuel at ${trip.start||"start"}</span><b>${fmt(dep)} lb</b><span>${sb>0?`add <b style="font-size:15px">${sb} gal</b> (${fmt(sb*LBS)} lb) to the ${fmt(+trip.startFuel||0)} on board${SHOW_VENDOR&&(fboFor(trip.start)||{}).vendor?" · order via "+fboFor(trip.start).vendor:""}`:"no fuel needed before departure"}</span>`;
       const tr=document.createElement("tr"); if(sb<=0) tr.className="nobuy";
-      tr.innerHTML=`<td class="stop">${trip.start||"—"}<span class="minref" style="color:var(--muted);background:var(--calc)">start</span></td>
+      tr.innerHTML=`<td class="stop">${trip.start||"—"}<span class="minref" style="color:var(--muted);background:var(--calc)">start</span>${vendorTag(trip.start)}</td>
         <td class="num buy" data-edit="start">${galCell("start",sb,sb*LBS,"pbuyS",'data-k="startBuy"')}</td>
         <td class="num">–</td><td class="num muted">–</td><td class="num">${fmt(dep)}${dep>wbLimit()?'<span class="wbflag">W&amp;B</span>':""}</td>`;
       tb.appendChild(tr); }
     r.rows.forEach((row,i)=>{ const leg=trip.legs[i]; if(!leg.to) return; const isEnd=leg.ground==="end";
       const tr=document.createElement("tr"); if(isEnd||row.buy<=0) tr.className="nobuy";
-      tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>`}</td>
+      tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>${vendorTag(leg.to)}`}</td>
         <td class="num buy"${isEnd?"":` data-edit="${i}"`}>${isEnd?"–":galCell(i,row.buy,row.lbs,"pbuy"+i,`data-i="${i}" data-k="buy"`)}</td>
         <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
         <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>
         <td class="num">${isEnd?"–":fmt(row.land+row.lbs)+(row.land+row.lbs>wbLimit()?'<span class="wbflag">W&amp;B</span>':"")}</td>`;
       tb.appendChild(tr); });
+    { const vg=vendorGaps(r); $("vendBar").hidden=!vg.length;
+      if(vg.length) $("vendBar").innerHTML=`<span>⚠</span><span><b>Confirm fuel vendor before ordering</b> so the right card is used: ${vg.map(x=>x.at+(x.status==="brand"?" (FBO pours "+x.name+", not confirmed for Clipper)":" (nothing on file)")).join(", ")}.</span>`; }
     { const wb=wbStops(r); $("wbBar").hidden=!wb.length;
       if(wb.length) $("wbBar").innerHTML=`<span>⚠</span><span><b>Confirm W&amp;B.</b> Takeoff fuel above ${Math.round(WB_FRAC*100)}% of max (${fmt(wbLimit())} lb) at ${wb.map(x=>x.at+" ("+fmt(x.fuel)+" lb)").join(", ")}.</span>`; }
     $("modeCheap").classList.toggle("primary",trip.extraMode!=="min"); $("modeMin").classList.toggle("primary",trip.extraMode==="min");
@@ -663,7 +696,8 @@ function render(){
   $("bDepart").textContent= noFuel?"–":fmt((+trip.startFuel||0)+(+trip.startBuy||0)*LBS);
   $("bGal").textContent= noFuel?"–":fmt(r.tot.gal); $("bWaived").textContent= noFuel?"–":money(r.tot.waived);
   const wbN=noFuel?0:wbStops(r).length;
-  const pc=$("bCheck"); pc.textContent= noFuel? "Enter fuel ↓" : (worst&&worst.cls==="bad"? worst.check : (wbN? "Confirm W&B" : (worst? worst.check : "OK"))); pc.className="pill"+(!noFuel&&worst&&worst.cls==="bad"?" bad":(wbN?" wb":""));
+  const vgN=noFuel?0:vendorGaps(r).length;
+  const pc=$("bCheck"); pc.textContent= noFuel? "Enter fuel ↓" : (worst&&worst.cls==="bad"? worst.check : (wbN? "Confirm W&B" : (vgN? "Confirm vendor" : (worst? worst.check : "OK")))); pc.className="pill"+(!noFuel&&worst&&worst.cls==="bad"?" bad":(wbN||vgN?" wb":""));
 
   // ---- notes ----
   const notes=[];
@@ -674,6 +708,7 @@ function render(){
     if(row.f.notes&&row.f.notes!=="Home base") notes.push(`${l.to}: ${row.f.notes}.`);
   });
   if(lastPlanNote) notes.unshift(lastPlanNote);
+  if(!noFuel){ const vg=vendorGaps(r); if(vg.length) notes.unshift(`Confirm fuel vendor at ${vg.map(x=>x.at).join(", ")} before ordering.`); }
   if(!noFuel){ const wb=wbStops(r); if(wb.length) notes.unshift(`Confirm weight & balance: takeoff above ${fmt(wbLimit())} lb (${Math.round(WB_FRAC*100)}% of max) at ${wb.map(x=>x.at).join(", ")}.`); }
   if(r.tot.unknownPrice) notes.push("Fuel cost excludes stops with no price on file.");
   $("notes").innerHTML=notes.map(n=>`<li>${n}</li>`).join("");
@@ -687,7 +722,7 @@ function renderFbos(){
     const tr=document.createElement("tr");
     const n=v=>v==null||v===""?"–":v;
     tr.innerHTML=`<td><b>${f.icao}</b>${f.fromPdf?' <span class="pill warn" title="From the imported itinerary, this session only">PDF</span>':""}</td><td>${f.fbo||""}</td><td class="num">${n(f.min)}</td><td class="num">${n(f.waive)}</td>
-      <td class="num">${n(f.landing)}</td><td class="num">${n(f.infra)}</td><td class="num">${n(f.parking)}</td><td class="num">${f.price!=null?f.price.toFixed(2):"–"}</td>
+      <td class="num">${n(f.landing)}</td><td class="num">${n(f.infra)}</td><td class="num">${n(f.parking)}</td><td class="num">${f.price!=null?f.price.toFixed(2):"–"}</td><td class="vcol">${f.vendor?f.vendor:(f.brand?`<span style="color:var(--warn)">${f.brand}? (FBO brand per ${f.brandSrc||"directory"}; confirm)</span>`:'<span style="color:var(--bad)">unknown</span>')}</td>
       <td style="white-space:normal">${f.notes||""}</td><td>${f.source||""}</td><td>${f.asOf||""}</td>`;
     tb.appendChild(tr);
   });
@@ -780,11 +815,11 @@ function buildSummaryPdf(){
   doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("FUEL ORDERS",M,y+4);
   doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.text("BUY",M+318,y+4,{align:"right"}); doc.text("LAND  /  TAKEOFF",R-10,y+4,{align:"right"}); y+=10;
   const orders=[];
-  { const sf=fboFor(trip.start)||{}; orders.push({code:trip.start||"Start",sub:"before departure  •  "+fmt(onBoard)+" lb on board",gal:sb,lbs:sb*LBS,price:sf.price,land:null,to:dep,end:false,bad:false}); }
+  { const sf=fboFor(trip.start)||{}; orders.push({vinfo:vendorInfo(trip.start),code:trip.start||"Start",sub:"before departure  •  "+fmt(onBoard)+" lb on board",gal:sb,lbs:sb*LBS,price:sf.price,land:null,to:dep,end:false,bad:false}); }
   legs.forEach(({l,row})=>{ const end=l.ground==="end"; const f=fboFor(l.to)||{};
     const sub= end? "trip end" : [(row.min?"min "+row.min+" gal":"no minimum"), (row.waived?"saves "+money(row.waived):(row.min>0&&row.buy<row.min?"fee NOT waived":"")), (l.ground==="overnight"?"overnight":"")].filter(Boolean).join("  •  ");
-    orders.push({code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,price:end?null:f.price,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
-  orders.forEach((o,i)=>{ const h=o.end?40:58; if(y+h>720){ doc.addPage(); y=M }
+    orders.push({vinfo:vendorInfo(l.to),code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,price:end?null:f.price,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
+  orders.forEach((o,i)=>{ const h=o.end?36:54; if(y+h>720){ doc.addPage(); y=M }
     if(!o.end&&o.gal>0){ doc.setFillColor(238,243,248); doc.rect(M,y,R-M,h,"F") }
     doc.setDrawColor(...LINE); doc.setLineWidth(1); doc.line(M,y+h,R,y+h);
     if(i>0&&!o.end&&o.gal>0&&orders[i-1].gal>0){ doc.setDrawColor(255,255,255); doc.setLineWidth(3); doc.line(M,y,R,y); doc.setLineWidth(1) }
@@ -799,8 +834,13 @@ function buildSummaryPdf(){
         doc.setFontSize(13); doc.text("gal",M+294,mid+10); }
       else { doc.setFont("helvetica","bold"); doc.setFontSize(18); col(GRAY); doc.text("no fuel",M+318,mid+6,{align:"right"}) }
       doc.setFont("helvetica","normal"); doc.setFontSize(9); col(GRAY);
-      const meta=[o.gal>0?fmt(o.lbs)+" lb":"", o.price?"$"+o.price.toFixed(2)+"/gal":""].filter(Boolean);
-      meta.forEach((t,k)=>{ const ch=k===meta.length-1&&o.price&&o.code===cheapest; doc.setFont("helvetica",ch?"bold":"normal"); col(ch?GREEN:GRAY); doc.text(t+(ch?"  cheapest":""),M+330,mid-3+k*12) });
+      const meta=[o.price?"$"+o.price.toFixed(2)+"/gal":"", o.gal>0?fmt(o.lbs)+" lb":""].filter(Boolean);
+      if(SHOW_VENDOR){ const v=o.vinfo; doc.setFont("helvetica","bold"); doc.setFontSize(9.5);
+        if(v.status==="confirmed"){ col(INK); doc.text(pdfTxt("via "+v.name),M+330,mid-8) }
+        else if(v.status==="brand"){ col(AMBER); doc.text(pdfTxt(v.name+"? CONFIRM"),M+330,mid-8) }
+        else { col(RED); doc.text("VENDOR UNKNOWN",M+330,mid-8) } }
+      doc.setFontSize(9);
+      meta.forEach((t,k)=>{ const ch=k===0&&o.price&&o.code===cheapest; doc.setFont("helvetica",ch?"bold":"normal"); col(ch?GREEN:GRAY); doc.text(t+(ch?"  cheapest":""),M+330,(SHOW_VENDOR?mid+4:mid-3)+k*12) });
     }
     // land / takeoff
     doc.setFont("helvetica",o.bad?"bold":"normal"); doc.setFontSize(o.end?14:12); col(o.bad?RED:INK);
@@ -818,17 +858,18 @@ function buildSummaryPdf(){
   const stats=[["Fuel to buy",fmt(r.tot.gal)+" gal",fmt(r.tot.lbs)+" lb",NAVY],["Fees saved",money(r.tot.waived),"waived by fuel purchases",GREEN],["Fees still owed",money(r.tot.owed),"landing / infra / parking",AMBER],
     ["Est. fuel cost",(r.tot.unknownPrice?">= ":"")+money(r.tot.cost),r.tot.unknownPrice?"some prices unknown":"at posted prices",INK],["Fuel at end",fmt(r.final)+" lb","on final landing",INK]];
   const bw=(R-M-4*8)/5;
-  stats.forEach((st,i)=>{ const x=M+i*(bw+8); doc.setDrawColor(...LINE); doc.setFillColor(255,255,255); doc.roundedRect(x,y,bw,62,4,4,"S");
-    doc.setFillColor(...st[3]); doc.rect(x,y+8,3,46,"F");
+  stats.forEach((st,i)=>{ const x=M+i*(bw+8); doc.setDrawColor(...LINE); doc.setFillColor(255,255,255); doc.roundedRect(x,y,bw,56,4,4,"S");
+    doc.setFillColor(...st[3]); doc.rect(x,y+7,3,42,"F");
     doc.setFont("helvetica","normal"); doc.setFontSize(8.5); col(GRAY); doc.text(st[0],x+10,y+18);
     doc.setFont("helvetica","bold"); doc.setFontSize(15); col(st[3]); doc.text(pdfTxt(st[1]),x+10,y+38);
-    doc.setFont("helvetica","normal"); doc.setFontSize(7.5); col(GRAY); doc.text(doc.splitTextToSize(pdfTxt(st[2]),bw-14),x+10,y+51); });
-  y+=78;
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5); col(GRAY); doc.text(doc.splitTextToSize(pdfTxt(st[2]),bw-14),x+10,y+48); });
+  y+=70;
   const totalFees=r.tot.waived+r.tot.owed;
   if(totalFees>0){ doc.setFont("helvetica","normal"); doc.setFontSize(10.5); col(INK);
     doc.text(pdfTxt(`This plan avoids ${money(r.tot.waived)} of ${money(totalFees)} in FBO fees (${Math.round(r.tot.waived/totalFees*100)}%).`),M,y); y+=20; }
   // notes
   const notes=[];
+  { const vg=vendorGaps(r); if(vg.length) notes.push(`CONFIRM FUEL VENDOR before ordering (payment method): ${vg.map(x=>x.at+(x.status==="brand"?" - FBO pours "+x.name+", not confirmed for Clipper":" - nothing on file")).join("; ")}.`); }
   { const wb=wbStops(r); if(wb.length) notes.push(`CONFIRM WEIGHT & BALANCE: takeoff fuel above ${Math.round(WB_FRAC*100)}% of max (${fmt(wbLimit())} lb) at ${wb.map(x=>x.at+" ("+fmt(x.fuel)+" lb)").join(", ")}.`); }
   if(trip.manual) notes.push("This plan includes buy amounts changed by hand.");
   if(lastPlanNote) notes.push(lastPlanNote.trim());
@@ -931,6 +972,7 @@ function feesToFbo(icao,f,fuel,id,asOf){
   if(f.handling>0){ if(f.handlingWaiveGal>0){ e.min=f.handlingWaiveGal; e.waive=f.handling } else e.notes.push(`$${f.handling} handling waived, no fuel required`) }
   if(f.infra>0&&f.infraWaiveGal>0) e.notes.push(`infra waived with ${f.infraWaiveGal} gal`);
   if(f.parkingWaiveGal!=null){ e.notes.push(f.parkingWaiveGal>0?`${f.parkingNights||1} night parking waived with ${f.parkingWaiveGal} gal`:`${f.parkingNights||1} night parking free`) }
+  if(fuel&&fuel.brand) e.vendor=fuel.brand;
   if(fuel&&fuel.tiers&&fuel.tiers.length){ e.price=fuel.tiers[0].price; if(fuel.tiers.length>1) e.notes.push(fuel.brand+" tiers: "+fuel.tiers.map(t=>`${t.min}+ $${t.price}`).join(" · ")) }
   e.notes=e.notes.join("; "); return e;
 }
