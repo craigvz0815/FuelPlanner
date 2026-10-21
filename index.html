@@ -173,6 +173,16 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   header{flex-wrap:nowrap} .logo{width:36px;height:36px;border-radius:8px} h1{font-size:19px;white-space:nowrap}
   .rl{display:none} #reloadBtn{width:32px;height:32px;padding:0;border-radius:50%}
 }
+.sharerow{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
+.pdfview{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;grid-template-rows:auto 1fr auto}
+.pv-bar{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
+.pv-bar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-body{overflow:auto;padding:16px;display:grid;gap:16px;align-content:start;justify-items:center;-webkit-overflow-scrolling:touch}
+.pv-body canvas,.pv-body iframe{width:100%;max-width:820px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);border-radius:2px}
+.pv-body iframe{height:100%;min-height:70vh;border:0}
+.pv-actions{display:grid;grid-template-columns:2fr 1fr;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--panel)}
+.pv-actions button{padding:13px 10px;font-weight:600;border-radius:8px;font-size:16px}
+.sharerow button{padding:12px 10px;font-weight:600;border-radius:8px}
 @media (prefers-reduced-motion:no-preference){ button{transition:background .15s} }
 </style>
 </head>
@@ -183,7 +193,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v31</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v32</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -248,6 +258,8 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <p class="hint">Tap any buy amount to change it.</p>
   <div class="legend"><span><span class="sw warn">MIN</span>waiver minimum</span><span><span class="sw ok">$</span>cheapest fuel</span><span><span class="sw bad">!</span>problem</span></div>
   <div class="planfoot" id="planFoot" style="margin-top:12px"></div>
+  <div class="sharerow"><button id="pdfShare" class="primary">View summary (PDF)</button></div>
+  <div id="pdfMsg" class="muted" hidden style="margin-top:6px"></div>
   <div class="planopts">
     <label class="f">Fuel wanted at end (lbs)<input type="number" id="endTarget" step="10" placeholder="= min landing" inputmode="numeric"></label>
     <div class="planmode" style="margin-top:0">
@@ -298,6 +310,11 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield}
   <p class="muted">Fees come from Clipper crew itineraries; verify with the FBO before relying on a waiver. Waivable fee = the handling/ramp fee the minimum purchase removes. Landing and infra fees are paid regardless. Parking only counts for Overnight stops. Fuel price blank = unknown; auto-plan then treats it as expensive.</p>
   </details>
 </section>
+</div>
+<div id="pdfView" class="pdfview" hidden role="dialog" aria-modal="true" aria-label="Summary PDF">
+  <div class="pv-bar"><b>Summary</b><span id="pvName" class="muted"></span><button id="pvClose" class="small">Close</button></div>
+  <div class="pv-body" id="pvBody"></div>
+  <div class="pv-actions"><button id="pvShare" class="primary">Share</button><button id="pvPrint">Print</button></div>
 </div>
 
 
@@ -597,7 +614,7 @@ function render(){
   // ---- fuel plan ----
   const planOn=st.fuel;
   $("planPanel").hidden=!planOn;
-  if(planOn){ const tb=$("planTable").querySelector("tbody"); tb.innerHTML="";
+  if(planOn){ preloadPdf(); const tb=$("planTable").querySelector("tbody"); tb.innerHTML="";
     $("manualBar").hidden=!trip.manual;
     const galCell=(key,gal,lbs,id,attrs)=> editBuy===key
       ? `<input type="number" id="${id}" value="${gal}" ${attrs} step="5" min="0" inputmode="numeric" aria-label="Gallons to buy">`
@@ -692,6 +709,10 @@ document.addEventListener("click",e=>{
   else if(b.id==="helpBtn") setHelp($("helpCard").hidden);
   else if(b.id==="helpDone") setHelp(false);
   else if(b.id==="addStop"){ const endIdx=trip.legs.findIndex(l=>l.ground==="end"); const nl={to:"",block:"1:00",ground:"quick",buy:null}; if(endIdx>=0) trip.legs.splice(endIdx,0,nl); else trip.legs.push(nl); render() }
+  else if(b.id==="pdfShare") viewSummary(b);
+  else if(b.id==="pvClose") closeSummary();
+  else if(b.id==="pvShare") shareCurrentPdf();
+  else if(b.id==="pvPrint") printCurrentPdf();
   else if(b.id==="resetPlan"){ trip.manual=false; editBuy=null; autoPlan() }
   else if(b.id==="modeCheap"||b.id==="modeMin"){ trip.extraMode= b.id==="modeMin"?"min":"cheap"; trip.manual=false; plan() }
   else if(b.id==="pasteBtn") pasteFromClipboard();
@@ -709,6 +730,136 @@ document.addEventListener("click",e=>{
   else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,endTarget:trip.endTarget||""}); currentDayKey=null; editBuy=null; $("importMsg").hidden=true; render(); window.scrollTo({top:0,behavior:"smooth"}) }
 });
 if(matchMedia("(max-width:640px)").matches) $("libDetails").open=false;
+// ---- Summary PDF (jsPDF, built on the phone; nothing is uploaded) ----
+let jspdfP=null, logoData=null, pdfPre=false;
+function loadJsPDF(){ if(window.jspdf) return Promise.resolve(); if(!jspdfP) jspdfP=new Promise((ok,err)=>{ const sc=document.createElement("script");
+  sc.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"; sc.onload=ok; sc.onerror=()=>{ jspdfP=null; err(new Error("Could not load the PDF maker. Check the connection and try again.")) }; document.head.appendChild(sc) }); return jspdfP }
+function preloadPdf(){ if(pdfPre) return; pdfPre=true; loadJsPDF().catch(()=>{ pdfPre=false });
+  fetch("icon-192.png").then(r=>r.ok?r.blob():null).then(b=>{ if(!b) return; const fr=new FileReader(); fr.onload=()=>{ logoData=fr.result }; fr.readAsDataURL(b) }).catch(()=>{}) }
+const pdfTxt=t=>String(t==null?"":t).replace(/→/g,">").replace(/≥/g,">=").replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[^\x20-\x7E -ÿ–—•]/g,"");
+function pdfName(){ const n=(trip.name||"").replace(/\//g,"-").replace(/\s*·\s*/g," ").replace(/[^\w\-+ ]/g,"").replace(/\s+/g," ").trim(); return "Fuel plan"+(n?" "+n:"")+".pdf" }
+function buildSummaryPdf(){
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:"pt",format:"letter"});
+  const W=612, M=40, R=W-M; const r=compute();
+  const NAVY=[31,78,121], INK=[27,36,48], GRAY=[93,104,120], LINE=[214,219,210], GREEN=[46,125,79], RED=[179,38,30], AMBER=[178,106,0];
+  const col=(c)=>doc.setTextColor(c[0],c[1],c[2]);
+  const sb=+trip.startBuy||0, onBoard=+trip.startFuel||0, dep=onBoard+sb*LBS;
+  const legs=trip.legs.map((l,i)=>({l,row:r.rows[i]})).filter(x=>x.l.to);
+  const route=[trip.start,...legs.map(x=>x.l.to)].filter(Boolean).join("  >  ");
+  // cheapest stop
+  const priced=[{to:trip.start,f:fboFor(trip.start)||{}},...legs.filter(x=>x.l.ground!=="end").map(x=>({to:x.l.to,f:fboFor(x.l.to)||{}}))].filter(x=>x.to&&x.f.price).sort((a,b)=>a.f.price-b.f.price);
+  const cheapest=priced[0]&&priced[0].to;
+  let y=M;
+  // header
+  if(logoData){ try{ doc.addImage(logoData,"PNG",M,y-4,34,34) }catch(e){} }
+  const tx=logoData?M+44:M;
+  doc.setFont("helvetica","bold"); doc.setFontSize(20); col(INK); doc.text("Fuel Plan",tx,y+12);
+  doc.setFont("helvetica","normal"); doc.setFontSize(10.5); col(GRAY); doc.text(pdfTxt(trip.name||"Trip"),tx,y+28);
+  doc.setFontSize(9); doc.text("Clipper Aviation",R,y+12,{align:"right"});
+  const now=new Date(); doc.text("Prepared "+now.toLocaleDateString("en-US")+" "+now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}),R,y+26,{align:"right"});
+  y+=44; doc.setDrawColor(...LINE); doc.setLineWidth(1); doc.line(M,y,R,y); y+=18;
+  doc.setFontSize(10); col(GRAY); doc.text("ROUTE",M,y); doc.setFont("helvetica","bold"); col(INK); doc.setFontSize(11); doc.text(pdfTxt(route),M+48,y); y+=16;
+  // departure callout
+  doc.setFillColor(232,239,246); doc.roundedRect(M,y,R-M,58,6,6,"F");
+  doc.setFont("helvetica","bold"); doc.setFontSize(8.5); col(GRAY); doc.text(pdfTxt("DEPARTURE FUEL AT "+(trip.start||"START")),M+14,y+18);
+  doc.setFontSize(24); col(NAVY); doc.text(fmt(dep)+" lb",M+14,y+45);
+  doc.setFont("helvetica","normal"); doc.setFontSize(11); col(INK);
+  const callTxt= sb>0? `Add ${sb} gal (${fmt(sb*LBS)} lb) to the ${fmt(onBoard)} lb on board` : `No fuel needed before departure (${fmt(onBoard)} lb on board)`;
+  doc.text(doc.splitTextToSize(pdfTxt(callTxt),250),R-14,y+30,{align:"right"});
+  y+=76;
+  // table
+  const cols=[{h:"Stop",x:M+8,a:"left"},{h:"Waiver min",x:M+140,a:"right"},{h:"Buy",x:M+205,a:"right"},{h:"Buy lb",x:M+262,a:"right"},{h:"$/gal",x:M+316,a:"right"},{h:"Fees saved",x:M+384,a:"right"},{h:"Land lb",x:M+446,a:"right"},{h:"Takeoff lb",x:R-8,a:"right"}];
+  doc.setFillColor(...NAVY); doc.rect(M,y,R-M,22,"F"); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
+  cols.forEach(c=>doc.text(c.h.toUpperCase(),c.x,y+14.5,{align:c.a})); y+=22;
+  const rows=[];
+  { const sf=fboFor(trip.start)||{}; rows.push({stop:trip.start||"Start",tag:"start",min:"",buy:sb>0?sb+" gal":"none",lb:sb>0?fmt(sb*LBS):"",price:sf.price,saved:"",land:"",to:fmt(dep),bad:false}); }
+  legs.forEach(({l,row})=>{ const end=l.ground==="end"; const f=fboFor(l.to)||{};
+    rows.push({stop:l.to,tag:end?"end":(l.ground==="overnight"?"overnight":""),min:end?"":(row.min?row.min+" gal":"none"),buy:end?"":(row.buy>0?row.buy+" gal":"none"),lb:end?"":(row.buy>0?fmt(row.lbs):""),
+      price:end?null:f.price,saved:end?"":(row.waived?money(row.waived):"-"),land:fmt(row.land),to:end?"":fmt(row.land+row.lbs),bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
+  rows.forEach((x,i)=>{ if(y>700){ doc.addPage(); y=M } const h=26;
+    if(i%2===0){ doc.setFillColor(245,246,243); doc.rect(M,y,R-M,h,"F") }
+    const by=y+16.5;
+    doc.setFont("helvetica","bold"); doc.setFontSize(12); col(INK); doc.text(pdfTxt(x.stop),cols[0].x,by);
+    if(x.tag){ doc.setFont("helvetica","normal"); doc.setFontSize(8); col(GRAY); doc.text(x.tag,cols[0].x+doc.getTextWidth(pdfTxt(x.stop))*12/8+6,by) }
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); col(x.min&&x.min!=="none"?AMBER:GRAY); doc.text(x.min,cols[1].x,by,{align:"right"});
+    doc.setFont("helvetica","bold"); doc.setFontSize(11); col(x.below?RED:(x.buy&&x.buy!=="none"?NAVY:GRAY)); doc.text(x.buy,cols[2].x,by,{align:"right"});
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); col(GRAY); doc.text(x.lb,cols[3].x,by,{align:"right"});
+    if(x.price){ const ch=x.stop===cheapest; doc.setFont("helvetica",ch?"bold":"normal"); col(ch?GREEN:INK); doc.text("$"+x.price.toFixed(2),cols[4].x,by,{align:"right"}) }
+    doc.setFont("helvetica","normal"); col(x.saved&&x.saved!=="-"?GREEN:GRAY); doc.text(x.saved,cols[5].x,by,{align:"right"});
+    col(x.bad?RED:INK); doc.setFont("helvetica",x.bad?"bold":"normal"); doc.text(x.land,cols[6].x,by,{align:"right"});
+    doc.setFont("helvetica","normal"); col(INK); doc.text(x.to,cols[7].x,by,{align:"right"});
+    y+=h; });
+  doc.setDrawColor(...LINE); doc.line(M,y,R,y); y+=8;
+  doc.setFontSize(8); col(GRAY); doc.text(pdfTxt((cheapest?"Green price = cheapest fuel of the day ("+cheapest+"). ":"")+"Amber = waiver minimum (buy at least this much to avoid the handling fee). Red = problem."),M,y+8); y+=26;
+  // results
+  if(y>640){ doc.addPage(); y=M }
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("RESULTS",M,y); y+=8;
+  const stats=[["Fuel to buy",fmt(r.tot.gal)+" gal",fmt(r.tot.lbs)+" lb",NAVY],["Fees saved",money(r.tot.waived),"waived by fuel purchases",GREEN],["Fees still owed",money(r.tot.owed),"landing / infra / parking",AMBER],
+    ["Est. fuel cost",(r.tot.unknownPrice?">= ":"")+money(r.tot.cost),r.tot.unknownPrice?"some prices unknown":"at posted prices",INK],["Fuel at end",fmt(r.final)+" lb","on final landing",INK]];
+  const bw=(R-M-4*8)/5;
+  stats.forEach((st,i)=>{ const x=M+i*(bw+8); doc.setDrawColor(...LINE); doc.setFillColor(255,255,255); doc.roundedRect(x,y,bw,62,4,4,"S");
+    doc.setFillColor(...st[3]); doc.rect(x,y+8,3,46,"F");
+    doc.setFont("helvetica","normal"); doc.setFontSize(8.5); col(GRAY); doc.text(st[0],x+10,y+18);
+    doc.setFont("helvetica","bold"); doc.setFontSize(15); col(st[3]); doc.text(pdfTxt(st[1]),x+10,y+38);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7.5); col(GRAY); doc.text(doc.splitTextToSize(pdfTxt(st[2]),bw-14),x+10,y+51); });
+  y+=78;
+  const totalFees=r.tot.waived+r.tot.owed;
+  if(totalFees>0){ doc.setFont("helvetica","normal"); doc.setFontSize(10.5); col(INK);
+    doc.text(pdfTxt(`This plan avoids ${money(r.tot.waived)} of ${money(totalFees)} in FBO fees (${Math.round(r.tot.waived/totalFees*100)}%).`),M,y); y+=20; }
+  // notes
+  const notes=[];
+  if(trip.manual) notes.push("This plan includes buy amounts changed by hand.");
+  if(lastPlanNote) notes.push(lastPlanNote.trim());
+  if(priced.length) notes.push("Cheapest fuel today: "+priced.filter((x,i,a)=>a.findIndex(z=>z.to===x.to)===i).map(x=>x.to+" $"+x.f.price.toFixed(2)).join(", ")+".");
+  legs.forEach(({l,row})=>{ if(row.cls==="bad") notes.push(`${l.to}: ${row.check}.`); if(l.ground!=="end"&&row.min>0&&row.buy<row.min) notes.push(`${l.to}: buying less than the ${row.min} gal minimum, so the ${money(row.f.waive)} fee is not waived.`);
+    if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in the FBO library; fees unknown.`);
+    if(l.ground!=="end"&&row.f.notes&&row.f.notes!=="Home base") notes.push(`${l.to}: ${row.f.notes}.`); });
+  if(notes.length){ if(y>680){ doc.addPage(); y=M } doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("NOTES",M,y); y+=14;
+    doc.setFont("helvetica","normal"); doc.setFontSize(9.5); col(INK);
+    notes.forEach(n=>{ const lines=doc.splitTextToSize(pdfTxt(n),R-M-14); if(y+lines.length*12>740){ doc.addPage(); y=M } doc.text("•",M+2,y); doc.text(lines,M+14,y); y+=lines.length*12+3; }); y+=6; }
+  // assumptions + footer
+  const assum=`Burn ${fmt(+trip.burn||0)} lb/hr  •  Min landing ${fmt(+trip.minLand||0)} lb  •  Capacity ${fmt(+trip.cap||0)} lb  •  Fuel wanted at end ${trip.endTarget?fmt(+trip.endTarget)+" lb":"= min landing"}  •  Extra fuel to ${trip.extraMode==="min"?"min stops only":"cheapest stop"}  •  Jet-A 6.7 lb/gal`;
+  const pages=doc.getNumberOfPages();
+  for(let pg=1;pg<=pages;pg++){ doc.setPage(pg); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); col(GRAY);
+    if(pg===pages) doc.text(doc.splitTextToSize(pdfTxt(assum),R-M),M,742);
+    doc.text("Planning aid only. Fees and minimums come from Clipper itineraries; confirm with the FBO. Clipper Fuel Planner "+($("ver").textContent||"")+(pages>1?`  •  page ${pg} of ${pages}`:""),M,762); }
+  return {blob:doc.output("blob"),name:pdfName()};
+}
+function pdfStatus(html,err){ const m=$("pdfMsg"); m.hidden=!html; m.innerHTML=html||""; m.style.color=err?"var(--bad)":"" }
+let curPdf=null;
+function loadPdfJs(){ if(window.pdfjsLib) return Promise.resolve(); return new Promise((ok,err)=>{ const sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+  sc.onload=()=>{ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; ok() }; sc.onerror=()=>err(new Error("Could not load the PDF reader (offline?)")); document.head.appendChild(sc) }) }
+async function viewSummary(btn){
+  const label=btn.textContent; pdfStatus("");
+  try{
+    btn.textContent="Preparing…"; btn.disabled=true;
+    await loadJsPDF();
+    const {blob,name}=buildSummaryPdf();
+    if(curPdf&&curPdf.url) URL.revokeObjectURL(curPdf.url);
+    curPdf={blob,name,file:new File([blob],name,{type:"application/pdf"}),url:URL.createObjectURL(blob)};
+    const canShare=!!(navigator.canShare&&navigator.canShare({files:[curPdf.file]}));
+    $("pvShare").textContent= canShare? "Share" : "Download";
+    $("pvName").textContent=name; const body=$("pvBody"); body.innerHTML='<div class="muted" style="padding:40px 0">Rendering…</div>';
+    $("pdfView").hidden=false; document.documentElement.style.overflow="hidden";
+    try{
+      await loadPdfJs();
+      const pdf=await pdfjsLib.getDocument({data:await blob.arrayBuffer()}).promise; body.innerHTML="";
+      const cssW=Math.min(body.clientWidth-32,820), dpr=Math.min(window.devicePixelRatio||1,3);
+      for(let n=1;n<=pdf.numPages;n++){ const pg=await pdf.getPage(n); const v1=pg.getViewport({scale:1}); const vp=pg.getViewport({scale:cssW/v1.width*dpr});
+        const c=document.createElement("canvas"); c.width=Math.floor(vp.width); c.height=Math.floor(vp.height); c.setAttribute("aria-label","Summary page "+n);
+        body.appendChild(c); await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise; }
+    }catch(e){ body.innerHTML=""; const f=document.createElement("iframe"); f.src=curPdf.url; f.title="Summary PDF"; body.appendChild(f) }
+  }catch(e){ closeSummary(); pdfStatus("Couldn't make the PDF: "+(e.message||e),true) }
+  finally{ btn.textContent=label; btn.disabled=false }
+}
+function closeSummary(){ $("pdfView").hidden=true; document.documentElement.style.overflow=""; }
+function downloadPdf(){ const a=document.createElement("a"); a.href=curPdf.url; a.download=curPdf.name; document.body.appendChild(a); a.click(); a.remove() }
+function shareCurrentPdf(){ if(!curPdf) return;
+  if(navigator.canShare&&navigator.canShare({files:[curPdf.file]})){
+    navigator.share({files:[curPdf.file],title:curPdf.name.replace(/\.pdf$/,"")}).catch(e=>{ if(e&&e.name!=="AbortError") downloadPdf() }); }
+  else downloadPdf(); }
+function printCurrentPdf(){ if(!curPdf) return; const w=window.open(curPdf.url,"_blank"); if(!w) downloadPdf() }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!$("pdfView").hidden) closeSummary() });
 // Shared parser (same code goes into the page)
 function parseItinerary(text){
   if(/^\s*\{\\rtf/.test(text)){ text=text.replace(/\\par[d]?\b/g,"\n").replace(/\\(tab|line|cell|row)\b/g," ").replace(/\\'[0-9a-f]{2}/g," ").replace(/\\[a-zA-Z]+-?\d* ?/g,"").replace(/[{}]/g,"") }
