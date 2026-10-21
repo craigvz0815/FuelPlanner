@@ -16,18 +16,18 @@
 /* Layout: a flight-release style sheet. Inputs up top, the leg table as the centerpiece, FBO library below. */
 :root{
   --bg:#f5f6f3; --panel:#ffffff; --fg:#1b2430; --muted:#5d6878; --line:#d6dbd2;
-  --accent:#1f4e79; --accent-fg:#ffffff; --calc:#eef2ee;
+  --accent:#1f4e79; --accent-fg:#ffffff; --calc:#eef2ee; --in-bg:#ffffff; --in-line:#8aa9c7;
   --ok:#2e7d4f; --ok-bg:#e3f1e8; --warn:#b26a00; --warn-bg:#fff3dc; --bad:#b3261e; --bad-bg:#fbe4e2;
   --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#141a21; --panel:#1c242e; --fg:#e6eaee; --muted:#9aa6b4; --line:#33404d;
-  --accent:#6fa8dc; --accent-fg:#0f1a26; --calc:#222d39;
+  --accent:#6fa8dc; --accent-fg:#0f1a26; --calc:#222d39; --in-bg:#10161c; --in-line:#3f6a93;
   --ok:#7fd3a0; --ok-bg:#1d3327; --warn:#f0b24f; --warn-bg:#3a2d12; --bad:#ff8a80; --bad-bg:#3f1f1d; color-scheme:dark } }
 :root[data-theme="dark"]{
   --bg:#141a21; --panel:#1c242e; --fg:#e6eaee; --muted:#9aa6b4; --line:#33404d;
-  --accent:#6fa8dc; --accent-fg:#0f1a26; --calc:#222d39;
+  --accent:#6fa8dc; --accent-fg:#0f1a26; --calc:#222d39; --in-bg:#10161c; --in-line:#3f6a93;
   --ok:#7fd3a0; --ok-bg:#1d3327; --warn:#f0b24f; --warn-bg:#3a2d12; --bad:#ff8a80; --bad-bg:#3f1f1d; color-scheme:dark }
 
 *{box-sizing:border-box}
@@ -47,7 +47,7 @@ header p{margin:0;color:var(--muted)}
 .settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 label.f{display:grid;gap:4px;font-size:12px;color:var(--muted)}
 input,select,button{font:inherit;color:inherit}
-input[type=text],input[type=number],select{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px;width:100%;min-width:0}
+input[type=text],input[type=number],select{background:var(--in-bg);border:1px solid var(--in-line);border-radius:4px;padding:6px 8px;width:100%;min-width:0}
 input[type=number]{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
 input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 button{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:6px 12px;cursor:pointer}
@@ -127,6 +127,52 @@ table.plan .cheap{display:inline-block;margin-top:3px;margin-left:4px;font-famil
   .stickybar div{flex:1} .stickybar b{display:block;font-size:17px;font-weight:500} .stickybar small{font-family:var(--sans);font-size:11px;opacity:.85}
   .stickybar .pill{background:var(--accent-fg);color:var(--accent)}
 }
+
+/* v31: guided flow */
+.hdr-btns{display:flex;gap:6px;align-items:center}
+button.icon{width:32px;height:32px;padding:0;border-radius:50%;font-weight:600}
+button.link{border:0;background:none;padding:2px 0;color:var(--accent);text-decoration:underline;text-underline-offset:2px;font-size:13px}
+.progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.progress button{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;border-top:3px solid var(--line);border-radius:0;background:none;padding:6px 2px 0;font-size:12px;color:var(--muted)}
+.progress i,.sect-label i{font-style:normal;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);font-size:12px;font-weight:600;background:var(--panel)}
+.progress .done{color:var(--ok);border-top-color:var(--ok)} .progress .done i{background:var(--ok);border-color:var(--ok);color:var(--panel)}
+.progress .cur{color:var(--accent);border-top-color:var(--accent);font-weight:600} .progress .cur i{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.progress .cur.bad{color:var(--bad);border-top-color:var(--bad)} .progress .cur.bad i{background:var(--bad);border-color:var(--bad);color:var(--panel)}
+.help{border:1.5px solid var(--accent)} .help ol{margin:0 0 10px;padding-left:20px} .help li{margin:8px 0}
+.cardhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sect{padding:14px 0 4px;border-top:1px solid var(--line);margin-top:10px}
+.sect.first{border-top:0;padding-top:0;margin-top:0}
+.sect-label{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;margin-bottom:10px}
+.sect.done .sect-label i{background:var(--ok);border-color:var(--ok);color:var(--panel)}
+.sect.next .sect-label i{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+button.big{width:100%;padding:16px 12px;font-size:17px;font-weight:600;border-radius:8px}
+.links{margin-top:10px;font-size:13px;color:var(--muted);text-align:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:999px;padding:8px 12px;font-size:13px;text-align:left;font-family:var(--mono)}
+.trip-line{font-family:var(--mono);font-size:13px;color:var(--muted);margin-bottom:8px}
+.bigfield{display:flex;align-items:center;gap:10px}
+.bigfield input[type=number]{max-width:220px;font-size:28px;padding:10px 14px;border:2px solid var(--accent);font-weight:600}
+.bigfield.empty input[type=number]{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
+.bigfield span{font-family:var(--mono);color:var(--muted);font-size:16px}
+.manualbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--warn-bg);color:var(--warn);padding:8px 10px;border-radius:6px;margin-bottom:10px;font-size:13px;font-weight:500}
+.hint{font-size:12px;color:var(--muted);margin:8px 0 0}
+.legend{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted);margin-top:6px}
+.legend .sw{display:inline-block;font-weight:600;font-size:10px;letter-spacing:.04em;padding:1px 5px;border-radius:4px;margin-right:3px}
+table.plan th{white-space:normal;line-height:1.2;vertical-align:bottom}
+table.plan td.buy[data-edit]{cursor:pointer}
+table.plan td.buy[data-edit] .gal{border-bottom:1.5px dashed currentColor}
+table.plan td.buy input{width:84px;font-size:16px;padding:6px 8px}
+.planopts{display:grid;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.planopts label.f{max-width:240px}
+details>summary{font-size:14px;color:var(--fg);font-weight:500} details>summary small{color:var(--muted);font-weight:400;font-family:var(--mono);font-size:12px}
+.stickybar button.pill{border:0;cursor:pointer;padding:4px 10px}
+.stickybar .pill.bad{background:var(--bad-bg);color:var(--bad)}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+@media (max-width:640px){
+  header{flex-wrap:nowrap} .logo{width:36px;height:36px;border-radius:8px} h1{font-size:19px;white-space:nowrap}
+  .rl{display:none} #reloadBtn{width:32px;height:32px;padding:0;border-radius:50%}
+}
 @media (prefers-reduced-motion:no-preference){ button{transition:background .15s} }
 </style>
 </head>
@@ -134,85 +180,107 @@ table.plan .cheap{display:inline-block;margin-top:3px;margin-left:4px;font-famil
 
 <div class="wrap">
 <header>
-  <div class="brand"><img src="icon-192.png" alt="Clipper Aviation" class="logo"><h1>Clipper Fuel Planner</h1></div>
+  <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
-  <button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻ Refresh</button>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v30</span>
+  <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v31</span>
 </header>
-<div class="stickybar" id="stickybar">
-  <div><b id="bFinal">–</b><small>lbs at end</small></div>
+<div class="stickybar" id="stickybar" hidden>
+  <div><b id="bDepart">–</b><small>depart lb</small></div>
   <div><b id="bGal">–</b><small>gal to buy</small></div>
-  <div><b id="bWaived">–</b><small>waived</small></div>
-  <span class="pill" id="bCheck">OK</span>
+  <div><b id="bWaived">–</b><small>fees saved</small></div>
+  <button class="pill" id="bCheck">OK</button>
 </div>
 
-<section class="panel">
-  <h2>Trip setup</h2>
-  <div class="settings">
-    <label class="f">Trip name<input type="text" id="tripName"></label>
-    <label class="f">Start airport<input type="text" id="startApt"></label>
-    <label class="f">Fuel on board now (lbs)<input type="number" id="startFuel" step="10" placeholder="e.g. 2550" inputmode="numeric"></label>
-    <label class="f">Buy before departure (gal)<input type="number" id="startBuy" step="5" placeholder="0" inputmode="numeric"></label>
-    <label class="f">Burn (lbs per block hr)<input type="number" id="burn" step="10"></label>
-    <label class="f">Min landing fuel (lbs)<input type="number" id="minLand" step="10"></label>
-    <label class="f">Usable capacity (lbs)<input type="number" id="cap" step="10"></label>
-    <label class="f">Fuel wanted at end (lbs)<input type="number" id="endTarget" step="10" placeholder="= min landing" inputmode="numeric"></label>
+<nav class="progress" id="progress" aria-label="Steps">
+  <button data-go="it"><i>1</i>Itinerary</button>
+  <button data-go="day"><i>2</i>Day</button>
+  <button data-go="fuel"><i>3</i>Fuel on board</button>
+  <button data-go="plan"><i>4</i>Plan</button>
+</nav>
+
+<section class="panel help" id="helpCard" hidden>
+  <h2>How it works</h2>
+  <ol>
+    <li><b>Add the itinerary.</b> In JetInsight open it, tap Share → <i>Clipper Fuel Planner</i>, then tap <b>ADD ITINERARY</b>. Or tap <b>Add itinerary</b> below and pick the PDF.</li>
+    <li><b>Pick the day.</b> Legs from different itineraries on the same date and tail are merged.</li>
+    <li><b>Enter fuel on board.</b> The plan appears right away: what to add before departure and what to buy at each stop to get the fees waived.</li>
+  </ol>
+  <div class="legend" style="margin-bottom:12px"><span><span class="sw warn">MIN 140</span>waiver minimum</span><span><span class="sw ok">$8.55</span>cheapest fuel</span><span><span class="sw bad">LOW FUEL</span>problem</span></div>
+  <button id="helpDone" class="primary">Got it</button>
+</section>
+
+<section class="panel" id="startCard">
+  <div class="cardhead"><h2 id="startTitle">Start here</h2><button id="clearTrip" class="link">Start over</button></div>
+  <div class="sect first" id="sectIt">
+    <div class="sect-label"><i>1</i>Itinerary</div>
+    <div id="pasteBox" hidden style="margin:0 0 6px">
+      <button class="primary big" id="pasteBtn" style="padding:18px 12px;font-size:18px;letter-spacing:.02em">ADD ITINERARY</button>
+      <div class="muted" style="margin-top:6px;text-align:center">Loads the itinerary you just shared</div>
+      <div id="pasteFallback" hidden>
+        <textarea id="pasteArea" placeholder="Tap here and choose Paste…" style="width:100%;height:70px;margin-top:8px;font:13px var(--mono);background:var(--in-bg);color:var(--fg);border:1px solid var(--in-line);border-radius:4px;padding:6px"></textarea>
+      </div>
+    </div>
+    <button id="importBtn" class="big primary">Add itinerary</button>
+    <div class="links"><button id="pasteToggle" class="link">Paste text</button> · <button id="manualBtn" class="link">Enter legs by hand</button> · <button id="resetTrip" class="link">Load example</button></div>
+    <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
+    <div id="importMsg" class="muted" hidden style="margin-top:10px"></div>
+    <div id="importDebug" hidden><textarea id="importDebugText" readonly style="width:100%;height:160px;font:12px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px"></textarea>
+      <button class="small" id="copyDebug">Copy text</button></div>
+  </div>
+  <div class="sect" id="sectDay" hidden>
+    <div class="sect-label"><i>2</i>Day</div>
+    <div id="dayChips" class="chips"></div>
+  </div>
+  <div class="sect" id="sectFuel" hidden>
+    <div class="sect-label"><i>3</i>Fuel on board now</div>
+    <div class="trip-line" id="tripLine"></div>
+    <div class="bigfield" id="fuelField"><input type="number" id="startFuel" step="10" placeholder="2200" inputmode="numeric" aria-label="Fuel on board now, pounds"><span>lb</span></div>
+    <div class="muted" style="margin-top:6px">What's in the tanks right now. The plan updates as you type.</div>
   </div>
 </section>
 
 <section class="panel" id="planPanel" hidden>
   <h2>Fuel plan</h2>
+  <div class="manualbar" id="manualBar" hidden><span>You changed the plan by hand.</span><button id="resetPlan" class="small">Reset to suggested</button></div>
   <div class="startline" id="startLine"></div>
-  <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Waives</th><th class="num">Land</th><th class="num">T/O</th></tr></thead><tbody></tbody></table></div>
-  <div class="planfoot" id="planFoot"></div>
-  <div class="planmode">
-    <span class="muted" style="font-family:var(--sans);font-size:12px">Extra fuel goes to:</span>
-    <button id="modeCheap" class="small">Cheapest stop</button>
-    <button id="modeMin" class="small">Min stops only</button>
-  </div>
-  <p class="muted" id="planNote" style="font-size:12px;margin:8px 0 0"></p>
-</section>
-
-<section class="panel">
-  <h2>Legs</h2>
-  <div class="steps">
-    <button id="clearTrip" class="step"><b>1</b><span>New day</span></button>
-    <button id="importBtn" class="step"><b>2</b><span>Add itinerary</span></button>
-    <button id="daysBtn" class="step"><b>3</b><span>Pick day</span></button>
-    <button id="autoBtn" class="step"><b>4</b><span>Auto-plan</span></button>
-  </div>
-  <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
-  <div class="toolbar" style="margin-top:8px">
-    <button id="pasteToggle" class="small" title="Paste itinerary text copied from a PDF">Paste text</button>
-    <button id="addStop" class="small">+ Add stop</button>
-    <span class="spacer"></span>
-    <button id="resetTrip" class="small">Load example</button>
-  </div>
-  <div id="pasteBox" hidden style="margin:0 0 10px">
-    <button class="primary" id="pasteBtn" style="width:100%;padding:18px 12px;font-size:18px;font-weight:600;letter-spacing:.02em;border-radius:8px">ADD ITINERARY</button>
-    <div class="muted" style="margin-top:6px;text-align:center">Loads the itinerary you just shared</div>
-    <div id="pasteFallback" hidden>
-      <textarea id="pasteArea" placeholder="Tap here and choose Paste…" style="width:100%;height:70px;margin-top:8px;font:13px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px"></textarea>
+  <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Fees saved</th><th class="num">Land</th><th class="num">Takeoff</th></tr></thead><tbody></tbody></table></div>
+  <p class="hint">Tap any buy amount to change it.</p>
+  <div class="legend"><span><span class="sw warn">MIN</span>waiver minimum</span><span><span class="sw ok">$</span>cheapest fuel</span><span><span class="sw bad">!</span>problem</span></div>
+  <div class="planfoot" id="planFoot" style="margin-top:12px"></div>
+  <div class="planopts">
+    <label class="f">Fuel wanted at end (lbs)<input type="number" id="endTarget" step="10" placeholder="= min landing" inputmode="numeric"></label>
+    <div class="planmode" style="margin-top:0">
+      <span class="muted" style="font-family:var(--sans);font-size:12px">Extra fuel goes to:</span>
+      <button id="modeCheap" class="small">Cheapest stop</button>
+      <button id="modeMin" class="small">Min stops only</button>
     </div>
   </div>
-  <div id="importMsg" class="muted" hidden></div>
-  <div id="importDebug" hidden><textarea id="importDebugText" readonly style="width:100%;height:160px;font:12px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px"></textarea>
-    <button class="small" id="copyDebug">Copy text</button></div>
-  <div id="legList" class="legs"></div>
-  <p class="muted">Import a Clipper crew itinerary PDF to fill the legs and fees automatically (the file stays on your device). Depart, Land, Waived and Still owed are calculated. Quick turn skips parking fees; Overnight includes them. Edit Buy gal to override the minimum.</p>
+  <p class="muted" id="planNote" style="font-size:12px;margin:10px 0 0"></p>
+  <ul class="notes" id="notes"></ul>
 </section>
 
 <section class="panel">
-  <h2>Result</h2>
-  <div class="summary">
-    <div class="stat"><b id="sGal">–</b><span>gallons to buy</span></div>
-    <div class="stat"><b id="sLbs">–</b><span>pounds added</span></div>
-    <div class="stat"><b id="sWaived">–</b><span>fees waived</span></div>
-    <div class="stat"><b id="sOwed">–</b><span>fees still owed</span></div>
-    <div class="stat"><b id="sFuelCost">–</b><span>est. fuel cost</span></div>
-    <div class="stat"><b id="sFinal">–</b><span>lbs on final landing</span></div>
+  <details id="legsDetails"><summary id="legsSummary">Edit legs</summary>
+  <div class="settings" style="margin-top:12px">
+    <label class="f">Trip name<input type="text" id="tripName"></label>
+    <label class="f">Start airport<input type="text" id="startApt" autocapitalize="characters"></label>
   </div>
-  <ul class="notes" id="notes"></ul>
+  <div id="legList" class="legs" style="margin-top:12px"></div>
+  <div class="toolbar" style="margin-top:10px"><button id="addStop" class="small">+ Add stop</button></div>
+  <p class="muted" style="margin:0">Block: type 105 for 1:05. Quick turn skips parking fees; Overnight adds them. Changing a Buy amount here works the same as tapping it in the plan.</p>
+  </details>
+</section>
+
+<section class="panel">
+  <details id="acDetails"><summary id="acSummary">Aircraft settings</summary>
+  <div class="settings" style="margin-top:12px">
+    <label class="f">Burn (lbs per block hr)<input type="number" id="burn" step="10"></label>
+    <label class="f">Min landing fuel (lbs)<input type="number" id="minLand" step="10"></label>
+    <label class="f">Usable capacity (lbs)<input type="number" id="cap" step="10"></label>
+  </div>
+  <p class="muted" style="margin:8px 0 0">King Air 350 defaults. Changes stay on this phone.</p>
+  </details>
 </section>
 
 <section class="panel">
@@ -416,7 +484,7 @@ function compute(){
     let owed= (f.landing||0)+(f.infra||0)+(met?0:(f.waive||0))+(leg.ground==="overnight"?(f.parking||0):0);
     if(isEnd) owed=0;
     let check="OK",cls="ok";
-    if(trip.startFuel===""||trip.startFuel==null){check="ENTER START FUEL";cls="warn"}
+    if(trip.startFuel===""||trip.startFuel==null){check="ENTER FUEL ON BOARD";cls="warn"}
     else if(!leg.to){check="ENTER AIRPORT";cls="warn"}
     else if(leg.gap&&!hours(leg.block)){check="GAP — ENTER BLOCK";cls="warn"}
     else if(depart>+trip.cap) {check="OVER CAPACITY";cls="bad"}
@@ -474,54 +542,77 @@ function autoPlan(){
   render();
 }
 
+let editBuy=null, rendering=false;
 function render(){
-  $("tripName").value=trip.name; $("startApt").value=trip.start; $("startFuel").value=trip.startFuel; $("startBuy").value=trip.startBuy||"";
+  rendering=true;
+  $("tripName").value=trip.name||""; $("startApt").value=trip.start||""; $("startFuel").value=trip.startFuel;
   $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap; $("endTarget").value=trip.endTarget||"";
   const r=compute(); const list=$("legList"); list.innerHTML=""; const noFuel=(trip.startFuel===""||trip.startFuel==null);
+  const hasLegs=trip.legs.some(l=>l.to), hasPool=pool.legs.length>0;
   let from=trip.start;
   r.rows.forEach((row,i)=>{
     const leg=trip.legs[i]; const isEnd=leg.ground==="end";
     const card=document.createElement("div"); card.className="leg"+(isEnd?" end":"");
-    const ov= leg.buy!=null && !isEnd ? " (override)" : "";
+    const ov= leg.buy!=null && !isEnd ? " (changed)" : "";
     card.innerHTML=`<div class="leg-head"><span class="muted">Leg ${i+1}${leg.gap?" · not on itinerary":""}</span><span class="route">${from} → ${leg.to||"?"}</span>
         <span class="pill ${row.cls}">${row.check}</span><button class="small" data-del="${i}" title="Remove stop">×</button></div>
       <div class="leg-in">
         <label class="f">To<input type="text" id="to${i}" value="${leg.to}" data-i="${i}" data-k="to" autocapitalize="characters" placeholder="ICAO"></label>
-        <label class="f">Block (type 105 for 1:05)<input type="text" id="blk${i}" value="${leg.block}" data-i="${i}" data-k="block" inputmode="numeric" placeholder="105 = 1:05"></label>
-        <label class="f">Ground<select id="gr${i}" data-i="${i}" data-k="ground">
+        <label class="f">Block time<input type="text" id="blk${i}" value="${leg.block}" data-i="${i}" data-k="block" inputmode="numeric" placeholder="105 = 1:05"></label>
+        <label class="f">On the ground<select id="gr${i}" data-i="${i}" data-k="ground">
           <option value="quick"${leg.ground==="quick"?" selected":""}>Quick turn</option>
           <option value="overnight"${leg.ground==="overnight"?" selected":""}>Overnight</option>
           <option value="end"${isEnd?" selected":""}>Trip end</option></select></label>
         <label class="f">Buy gal${ov}${isEnd?'<input type="text" value="–" disabled>':`<input type="number" id="buy${i}" value="${row.buy}" data-i="${i}" data-k="buy" step="5" min="0" inputmode="numeric">`}</label>
       </div>
       <div class="leg-out">
-        <div><small>Depart</small><b>${noFuel?"–":fmt(row.depart)}</b></div>
+        <div><small>Takeoff</small><b>${noFuel?"–":fmt(row.depart)}</b></div>
         <div><small>Land</small><b>${noFuel?"–":fmt(row.land)}</b></div>
         <div><small>Buy lbs</small><b>${isEnd?"–":fmt(row.lbs)}</b></div>
         <div><small>Min gal</small><b>${isEnd?"–":(row.min||"–")}</b></div>
-        <div><small>Waived</small><b>${isEnd?"–":(row.waived?money(row.waived):"$0")}</b></div>
+        <div><small>Fees saved</small><b>${isEnd?"–":(row.waived?money(row.waived):"$0")}</b></div>
         <div><small>Still owed</small><b>${isEnd?"–":(row.owed?money(row.owed):"$0")}</b></div>
       </div>`;
     list.appendChild(card); from=leg.to;
   });
-  // highlight the next step
-  const hasLegs=trip.legs.some(l=>l.to); const next= !pool.legs.length&&!hasLegs? "importBtn" : (!hasLegs? "daysBtn" : (noFuel? null : "autoBtn"));
-  ["clearTrip","importBtn","daysBtn","autoBtn"].forEach(id=>$(id).classList.toggle("primary",id===next));
-  // Fuel plan summary
-  const planOn=!noFuel && trip.legs.some(l=>l.to);
+  $("legsSummary").innerHTML= hasLegs? `Edit legs <small>· ${trip.start||"?"} → ${trip.legs.filter(l=>l.to).map(l=>l.to).join(" → ")}</small>` : "Edit legs";
+  $("acSummary").innerHTML=`Aircraft settings <small>· ${fmt(+trip.burn||0)} lb/hr · ${fmt(+trip.minLand||0)} min landing · ${fmt(+trip.cap||0)} cap</small>`;
+
+  // ---- start card: three steps ----
+  const worst=r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="bad")||r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="warn");
+  const st={it:hasPool||hasLegs, day:hasLegs, fuel:hasLegs&&!noFuel}; st.plan= st.fuel && !(worst&&worst.cls==="bad");
+  const order=["it","day","fuel","plan"]; const cur=order.find(k=>!st[k]);
+  const ib=$("importBtn"); ib.textContent= st.it? "+ Add another itinerary" : "Add itinerary"; ib.className= st.it? "" : "big primary";
+  $("sectIt").classList.toggle("done",st.it); $("sectIt").classList.toggle("next",cur==="it");
+  $("sectDay").hidden=!hasPool; $("sectDay").classList.toggle("done",st.day); $("sectDay").classList.toggle("next",cur==="day");
+  const chips=$("dayChips"); chips.innerHTML=""; dayButtons(chips);
+  $("sectFuel").hidden=!hasLegs; $("sectFuel").classList.toggle("done",st.fuel); $("sectFuel").classList.toggle("next",cur==="fuel");
+  $("tripLine").textContent= hasLegs? [trip.name, "departing "+(trip.start||"?")].filter(Boolean).join(" · ") : "";
+  $("fuelField").classList.toggle("empty",noFuel);
+  $("startTitle").textContent= st.fuel? "Trip" : "Start here";
+  document.querySelectorAll("#progress button").forEach(b=>{ const k=b.dataset.go;
+    b.classList.toggle("done",!!st[k]); b.classList.toggle("cur",k===cur); b.classList.toggle("bad",k===cur&&k==="plan");
+    b.querySelector("i").textContent= st[k]? "✓" : (k===cur&&k==="plan"? "!" : String(order.indexOf(k)+1)); });
+
+  // ---- fuel plan ----
+  const planOn=st.fuel;
   $("planPanel").hidden=!planOn;
   if(planOn){ const tb=$("planTable").querySelector("tbody"); tb.innerHTML="";
+    $("manualBar").hidden=!trip.manual;
+    const galCell=(key,gal,lbs,id,attrs)=> editBuy===key
+      ? `<input type="number" id="${id}" value="${gal}" ${attrs} step="5" min="0" inputmode="numeric" aria-label="Gallons to buy">`
+      : (gal>0?`<span class="gal">${gal} gal</span><small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(lbs)} lb</small>`:`<span class="gal">no fuel</span>`);
     { const sb=+trip.startBuy||0, dep=(+trip.startFuel||0)+sb*LBS;
-      $("startLine").innerHTML=`<span>Suggested departure fuel at ${trip.start||"start"}</span><b>${fmt(dep)} lb</b><span>${sb>0?`add <b style="font-size:15px">${sb} gal</b> (${fmt(sb*LBS)} lb) to the ${fmt(+trip.startFuel||0)} on board`:"no fuel needed before departure"}</span>`; }
-    { const sb=+trip.startBuy||0, sf=fboFor(trip.start)||{}; const tr=document.createElement("tr"); if(sb<=0) tr.className="nobuy";
+      $("startLine").innerHTML=`<span>Suggested departure fuel at ${trip.start||"start"}</span><b>${fmt(dep)} lb</b><span>${sb>0?`add <b style="font-size:15px">${sb} gal</b> (${fmt(sb*LBS)} lb) to the ${fmt(+trip.startFuel||0)} on board`:"no fuel needed before departure"}</span>`;
+      const tr=document.createElement("tr"); if(sb<=0) tr.className="nobuy";
       tr.innerHTML=`<td class="stop">${trip.start||"—"}<span class="minref" style="color:var(--muted);background:var(--calc)">start</span></td>
-        <td class="num buy">${sb>0?`${sb} gal<small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(sb*LBS)} lb</small>`:"no fuel"}</td>
-        <td class="num">–</td><td class="num muted">–</td><td class="num">${fmt((+trip.startFuel||0)+sb*LBS)}</td>`;
+        <td class="num buy" data-edit="start">${galCell("start",sb,sb*LBS,"pbuyS",'data-k="startBuy"')}</td>
+        <td class="num">–</td><td class="num muted">–</td><td class="num">${fmt(dep)}</td>`;
       tb.appendChild(tr); }
     r.rows.forEach((row,i)=>{ const leg=trip.legs[i]; if(!leg.to) return; const isEnd=leg.ground==="end";
       const tr=document.createElement("tr"); if(isEnd||row.buy<=0) tr.className="nobuy";
       tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>`}</td>
-        <td class="num buy">${isEnd?"–":(row.buy>0?`${row.buy} gal<small style="display:block;font-weight:400;font-size:11px;color:var(--muted)">${fmt(row.lbs)} lb</small>`:"no fuel")}</td>
+        <td class="num buy"${isEnd?"":` data-edit="${i}"`}>${isEnd?"–":galCell(i,row.buy,row.lbs,"pbuy"+i,`data-i="${i}" data-k="buy"`)}</td>
         <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
         <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>
         <td class="num">${isEnd?"–":fmt(row.land+row.lbs)}</td>`;
@@ -531,27 +622,29 @@ function render(){
     const seen=new Set(); const uniq=priced.filter(x=>!seen.has(x.to)&&seen.add(x.to));
     $("planNote").textContent= uniq.length? "Cheapest fuel today: "+uniq[0].to+" $"+uniq[0].f.price.toFixed(2)+"/gal"+(uniq.length>1?" · then "+uniq.slice(1).map(x=>x.to+" $"+x.f.price.toFixed(2)).join(" · "):"")+(trip.extraMode==="min"?". Extra fuel limited to stops with a waiver minimum.":".") : "No fuel prices on file for these stops.";
     const cheapest=uniq[0]&&uniq[0].to;
-    tb.querySelectorAll("tr").forEach((tr,i)=>{ const code=tr.querySelector("td.stop"); if(cheapest&&code&&code.firstChild&&code.firstChild.textContent===cheapest) code.querySelector(".minref").insertAdjacentHTML("afterend",'<span class="cheap">$'+uniq[0].f.price.toFixed(2)+'</span>') });
-    $("planFoot").innerHTML=`<span><b>${fmt(r.tot.gal)} gal</b><small>total to buy</small></span><span><b>${money(r.tot.waived)}</b><small>fees waived</small></span><span><b>${money(r.tot.owed)}</b><small>still owed</small></span><span><b>${fmt(r.final)} lb</b><small>at end</small></span>`;
+    tb.querySelectorAll("tr").forEach(tr=>{ const code=tr.querySelector("td.stop"); if(cheapest&&code&&code.firstChild&&code.firstChild.textContent===cheapest) code.querySelector(".minref").insertAdjacentHTML("afterend",'<span class="cheap">$'+uniq[0].f.price.toFixed(2)+'</span>') });
+    $("planFoot").innerHTML=`<span><b>${fmt(r.tot.gal)} gal</b><small>total to buy</small></span><span><b>${money(r.tot.waived)}</b><small>fees saved</small></span><span><b>${money(r.tot.owed)}</b><small>still owed</small></span><span><b>${fmt(r.final)} lb</b><small>at end</small></span><span><b>${(r.tot.unknownPrice?"≥ ":"")+money(r.tot.cost)}</b><small>est. fuel cost</small></span>`;
   }
-  const worst=r.rows.find(x=>x.cls==="bad")||r.rows.find(x=>x.cls==="warn");
-  $("bFinal").textContent=(trip.startFuel===""||trip.startFuel==null)?"–":fmt(r.final); $("bGal").textContent=fmt(r.tot.gal); $("bWaived").textContent=money(r.tot.waived);
-  $("bCheck").textContent= worst? worst.check : "OK";
-  $("sGal").textContent=fmt(r.tot.gal); $("sLbs").textContent=fmt(r.tot.lbs);
-  $("sWaived").textContent=money(r.tot.waived); $("sOwed").textContent=money(r.tot.owed);
-  $("sFuelCost").textContent=(r.tot.unknownPrice?"≥ ":"")+money(r.tot.cost);
-  $("sFinal").textContent=(trip.startFuel===""||trip.startFuel==null)?"–":fmt(r.final);
+
+  // ---- sticky bar ----
+  $("stickybar").hidden=!hasLegs;
+  $("bDepart").textContent= noFuel?"–":fmt((+trip.startFuel||0)+(+trip.startBuy||0)*LBS);
+  $("bGal").textContent= noFuel?"–":fmt(r.tot.gal); $("bWaived").textContent= noFuel?"–":money(r.tot.waived);
+  const pc=$("bCheck"); pc.textContent= noFuel? "Enter fuel ↓" : (worst? worst.check : "OK"); pc.className="pill"+(!noFuel&&worst&&worst.cls==="bad"?" bad":"");
+
+  // ---- notes ----
   const notes=[];
   r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to) return;
     if(row.cls==="bad") notes.push(`${l.to}: ${row.check} (${row.check==="LOW FUEL"?"land "+fmt(row.land)+" lbs":"depart "+fmt(row.depart)+" lbs"}). Buy more at an earlier stop or less at the one before.`);
-    if(row.cls==="warn") notes.push(`${l.to}: buying ${row.buy} gal, minimum is ${row.min} — ${money(row.f.waive)} fee not waived.`);
-    if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in FBO library — add it below to include fees.`);
+    if(row.cls==="warn"&&!noFuel) notes.push(`${l.to}: buying ${row.buy} gal, minimum is ${row.min}, so the ${money(row.f.waive)} fee is not waived.`);
+    if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in the FBO library, so its fees are unknown.`);
     if(row.f.notes&&row.f.notes!=="Home base") notes.push(`${l.to}: ${row.f.notes}.`);
   });
   if(lastPlanNote) notes.unshift(lastPlanNote);
   if(r.tot.unknownPrice) notes.push("Fuel cost excludes stops with no price on file.");
   $("notes").innerHTML=notes.map(n=>`<li>${n}</li>`).join("");
   renderFbos(); save();
+  rendering=false;
 }
 
 function renderFbos(){
@@ -568,36 +661,52 @@ function renderFbos(){
 
 document.addEventListener("input",e=>{
   const t=e.target; if(!t.dataset) return;
+  if(t.id&&t.id.startsWith("pbuy")) return;                       // plan-table edits commit when the field loses focus
   if(t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; const k=t.dataset.k;
     if(k==="buy"){ l.buy= t.value===""? null : +t.value; trip.manual=true }
     else if(k==="to"){ l.to=t.value.toUpperCase() }
     else l[k]=t.value;
     if(k==="ground"&&t.value==="end") l.buy=null;
-    plan(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); el.setSelectionRange&&el.value.length&&el.setSelectionRange(el.value.length,el.value.length)} }
-  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",startBuy:"startBuy",burn:"burn",minLand:"minLand",cap:"cap",endTarget:"endTarget"};
-    if(t.id==="startBuy") trip.manual=true;
-    if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; plan(); $(keep).focus() } }
+    plan(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length) }catch(_){} } }
+  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",endTarget:"endTarget"};
+    if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; plan(); const el=$(keep); if(el) el.focus() } }
 });
-document.addEventListener("focusout",e=>{ const t=e.target; if(t.dataset&&t.dataset.k==="block"&&t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; if(l.block&&hours(l.block)>0){ l.block=blockFmt(hours(l.block)); render() } } });
+document.addEventListener("focusout",e=>{ const t=e.target; if(rendering) return;
+  if(t.dataset&&t.dataset.k==="block"&&t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; if(l.block&&hours(l.block)>0){ l.block=blockFmt(hours(l.block)); render() } }
+  if(t.id&&t.id.startsWith("pbuy")){ const v=t.value===""?null:Math.max(0,+t.value);
+    if(t.id==="pbuyS"){ if((+trip.startBuy||0)!==(v||0)){ trip.startBuy=v||0; trip.manual=true } }
+    else { const l=trip.legs[+t.dataset.i]; const cur=compute().rows[+t.dataset.i].buy; if(v!==cur){ l.buy=v; trip.manual=true } }
+    editBuy=null; setTimeout(plan,0) } });
+document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target.id&&(e.target.id.startsWith("pbuy")||e.target.id==="startFuel")) e.target.blur() });
+// tap a buy amount in the plan to edit it
+document.addEventListener("click",e=>{ const td=e.target.closest("td[data-edit]"); if(!td||e.target.tagName==="INPUT") return;
+  editBuy= td.dataset.edit==="start"? "start" : +td.dataset.edit; render();
+  const el=$(editBuy==="start"?"pbuyS":"pbuy"+editBuy); if(el){ el.focus(); el.select&&el.select() } });
+function go(id,focus){ const el=$(id); if(el&&!el.hidden) el.scrollIntoView({behavior:"smooth",block:"center"}); if(focus) setTimeout(()=>$(focus).focus({preventScroll:true}),250) }
+function setHelp(on){ $("helpCard").hidden=!on; if(!on){ try{ localStorage.setItem("cfp.help","seen") }catch(e){} } }
 document.addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
-  if(b.dataset.del!=null){ trip.legs.splice(+b.dataset.del,1); render() }
+  if(b.dataset.del!=null){ trip.legs.splice(+b.dataset.del,1); plan() }
+  else if(b.dataset.go){ const k=b.dataset.go; if(k==="it") go("sectIt"); else if(k==="day") go($("sectDay").hidden?"sectIt":"sectDay"); else if(k==="fuel") go($("sectFuel").hidden?"sectIt":"sectFuel",$("sectFuel").hidden?null:"startFuel"); else go($("planPanel").hidden?"startCard":"planPanel") }
+  else if(b.id==="bCheck"){ if(trip.startFuel===""||trip.startFuel==null) go("sectFuel","startFuel"); else go("planPanel") }
+  else if(b.id==="helpBtn") setHelp($("helpCard").hidden);
+  else if(b.id==="helpDone") setHelp(false);
   else if(b.id==="addStop"){ const endIdx=trip.legs.findIndex(l=>l.ground==="end"); const nl={to:"",block:"1:00",ground:"quick",buy:null}; if(endIdx>=0) trip.legs.splice(endIdx,0,nl); else trip.legs.push(nl); render() }
-  else if(b.id==="autoBtn"){ trip.manual=false; autoPlan() }
+  else if(b.id==="resetPlan"){ trip.manual=false; editBuy=null; autoPlan() }
   else if(b.id==="modeCheap"||b.id==="modeMin"){ trip.extraMode= b.id==="modeMin"?"min":"cheap"; trip.manual=false; plan() }
   else if(b.id==="pasteBtn") pasteFromClipboard();
   else if(b.id==="pasteToggle") showPastePrompt($("pasteBox").hidden,true);
-  else if(b.id==="daysBtn"){ const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent= buildDays().length? "Days from imported itineraries:" : "No itineraries imported yet."; const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap); }
+  else if(b.id==="manualBtn"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,endTarget:trip.endTarget||""}); currentDayKey=null; $("legsDetails").open=true; render(); go("legsDetails","to0") }
   else if(b.dataset.fetch){ const url=b.dataset.fetch; b.textContent="Fetching…"; b.disabled=true;
     (async()=>{ try{ const r=await fetch(url,{credentials:"include",mode:"cors"}); if(!r.ok) throw new Error("HTTP "+r.status); const blob=await r.blob();
         if(!/pdf/i.test(blob.type)&&blob.size<2000) throw new Error("not a PDF ("+blob.type+")"); importPdf(new File([blob],"itinerary.pdf",{type:"application/pdf"})); }
       catch(e){ b.textContent="Fetch blocked: "+(e.message||e); } })(); }
   else if(b.id==="reloadBtn") location.href=location.pathname+"?r="+Date.now();
-  else if(b.dataset.day){ loadDay(b.dataset.day); render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Loaded "+trip.name+". Enter start fuel, then Auto-plan."; const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap); $("startFuel").focus(); }
+  else if(b.dataset.day){ loadDay(b.dataset.day); editBuy=null; plan(); go("sectFuel","startFuel") }
   else if(b.id==="clearPool"){ pool={legs:[],fbo:[]}; savePool(); fbos=structuredClone(FBOS); currentDayKey=null; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Imported itineraries cleared."; }
   else if(b.id==="copyDebug"){ const ta=$("importDebugText"); ta.select(); navigator.clipboard&&navigator.clipboard.writeText(ta.value).catch(()=>{}); b.textContent="Copied"; }
-  else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); render() }
-  else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,endTarget:trip.endTarget||""}); render() }
+  else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); currentDayKey=null; editBuy=null; plan(); go("planPanel") }
+  else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,endTarget:trip.endTarget||""}); currentDayKey=null; editBuy=null; $("importMsg").hidden=true; render(); window.scrollTo({top:0,behavior:"smooth"}) }
 });
 if(matchMedia("(max-width:640px)").matches) $("libDetails").open=false;
 // Shared parser (same code goes into the page)
@@ -685,8 +794,8 @@ function loadDay(key){
 let currentDayKey=null;
 function dayButtons(container){
   const days=buildDays();
-  days.forEach(d=>{ const bt=document.createElement("button"); bt.className="small"+(d.key===currentDayKey?" primary":""); bt.style.margin="4px 6px 0 0"; bt.textContent=d.label; bt.dataset.day=d.key; container.appendChild(bt) });
-  const cl=document.createElement("button"); cl.className="small"; cl.style.margin="4px 0 0 0"; cl.textContent="Clear itineraries"; cl.id="clearPool"; container.appendChild(cl);
+  days.forEach(d=>{ const bt=document.createElement("button"); bt.className="chip"+(d.key===currentDayKey?" primary":""); bt.textContent=d.label; bt.dataset.day=d.key; container.appendChild(bt) });
+  if(days.length){ const cl=document.createElement("button"); cl.className="link"; cl.style.marginLeft="4px"; cl.textContent="Clear itineraries"; cl.id="clearPool"; container.appendChild(cl); }
 }
 function applyItinerary(it){
   if(!it.legs.length) throw new Error("No legs found. Is this a Clipper crew or passenger itinerary?");
@@ -733,15 +842,14 @@ function importText(text,label){
   try{
     const it=parseItinerary(text); const changes=applyItinerary(it); render();
     const feeApts=Object.keys(it.fees); const days=buildDays();
-    msg.textContent=`Imported ${it.id||label}: ${it.legs.length} legs, fees for ${feeApts.length?feeApts.join(", "):"no airports"}.`+(changes.length?` Library differences: ${changes.join("; ")} — send this itinerary to Craig to update the shared list.`:"")+(days.length>1?` ${days.length} days on file — pick one below.`:"")+" Enter start fuel, then Auto-plan.";
-    const wrap=document.createElement("div"); dayButtons(wrap); msg.appendChild(wrap);
-    $("startFuel").focus();
+    msg.textContent=`Imported ${it.id||label}: ${it.legs.length} legs, fees for ${feeApts.length?feeApts.join(", "):"no airports"}.`+(changes.length?` Library differences: ${changes.join("; ")}. Send this itinerary to Craig to update the shared list.`:"")+(days.length>1?` ${days.length} days on file, pick one in step 2.`:"");
+    go("sectFuel","startFuel");
   }catch(e){ msg.className="err"; msg.textContent="Import failed: "+(e.message||e)+" — the extracted text is shown below; copy it and send it to Craig.";
     dbg.hidden=false; $("importDebugText").value=text.slice(0,20000); }
 }
 // Android share sheet → service worker → cache → here
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
-function showPastePrompt(on,fallback){ const b=$("pasteBox"); b.hidden=!on; $("pasteFallback").hidden=!fallback; if(on){ b.scrollIntoView({block:"center"}); } }
+function showPastePrompt(on,fallback){ const b=$("pasteBox"); b.hidden=!on; $("pasteFallback").hidden=!fallback; $("importBtn").hidden=on&&!fallback; if(on){ $("helpCard").hidden=true; b.scrollIntoView({block:"center"}); } }
 async function pasteFromClipboard(){
   const msg=$("importMsg");
   try{ const t=await navigator.clipboard.readText(); if(t&&t.trim()){ showPastePrompt(false); importText(t,"pasted itinerary"); return } }catch(e){}
@@ -774,7 +882,7 @@ document.getElementById("importBtn").addEventListener("click",()=>$("pdfFile").c
 document.getElementById("pasteArea").addEventListener("paste",e=>{ const t=(e.clipboardData||window.clipboardData).getData("text"); if(t&&t.trim()){ e.preventDefault(); showPastePrompt(false); importText(t,"pasted itinerary"); } });
 document.getElementById("pasteArea").addEventListener("input",e=>{ const t=e.target.value; if(t&&/Leg/.test(t)){ showPastePrompt(false); importText(t,"pasted itinerary"); e.target.value=""; } });
 document.getElementById("pdfFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importPdf(f); e.target.value=""; });
-load(); loadPool(); render(); handleShared(); window.addEventListener("hashchange",handleShared); window.addEventListener("pageshow",e=>{ if(/^#(itin|paste)/.test(location.hash)) handleShared(); });
+load(); loadPool(); render(); { let seen=null; try{ seen=localStorage.getItem("cfp.help") }catch(e){} if(!seen&&!trip.legs.some(l=>l.to)) $("helpCard").hidden=false; } handleShared(); window.addEventListener("hashchange",handleShared); window.addEventListener("pageshow",e=>{ if(/^#(itin|paste)/.test(location.hash)) handleShared(); });
 </script>
 
 </body>
