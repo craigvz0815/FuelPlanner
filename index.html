@@ -204,6 +204,22 @@ table.plan tr.hasfo td{border-bottom:0}
 .pv-actions button{padding:13px 10px;font-weight:600;border-radius:8px;font-size:16px}
 .sharerow button{padding:12px 10px;font-weight:600;border-radius:8px}
 @media (prefers-reduced-motion:no-preference){ button{transition:background .15s} }
+/* v45: winds aloft */
+.windbar{display:flex;gap:8px 12px;align-items:flex-start;flex-wrap:wrap;background:var(--calc);border:1px solid var(--line);padding:9px 11px;border-radius:6px;margin-bottom:10px;font-size:13px}
+.windbar.err{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+.windbar .wt{font-weight:600;white-space:nowrap}
+.windbar .wl{display:flex;gap:6px 10px;flex-wrap:wrap;flex:1;min-width:0;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px}
+.windbar .wl span{white-space:nowrap} .windbar .wl b{font-weight:600} .windbar .wl i{font-style:normal;color:var(--muted)}
+.windbar .wb{display:flex;gap:6px;margin-left:auto}
+.windbar .src{flex-basis:100%;font-size:11.5px;color:var(--muted)}
+@media (max-width:640px){ .windbar{display:grid;grid-template-columns:1fr auto;align-items:center} .windbar .wt{grid-row:1;grid-column:1} .windbar .wb{grid-row:1;grid-column:2;margin-left:0} .windbar .wl{grid-row:2;grid-column:1/-1;flex-direction:column;gap:3px} .windbar .src{grid-row:3;grid-column:1/-1} }
+.hw{color:var(--bad)} .tw{color:var(--ok)}
+table.plan .wtag{display:block;font-family:var(--sans);font-weight:600;font-size:10px;letter-spacing:.03em;color:var(--muted);margin-top:2px}
+.leg-in2{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.leg-in2 label.f input{width:100%}
+@media (max-width:640px){ .leg-in2{grid-template-columns:1fr 1fr} }
+.leg-wind{font-size:12px;color:var(--muted);font-family:var(--mono);font-variant-numeric:tabular-nums}
+.leg-wind b{font-weight:600}
 </style>
 </head>
 <body>
@@ -213,7 +229,7 @@ table.plan tr.hasfo td{border-bottom:0}
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v44</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v46</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -235,6 +251,7 @@ table.plan tr.hasfo td{border-bottom:0}
     <li><b>Add the itinerary.</b> In JetInsight open it, tap Share → <i>Clipper Fuel Planner</i>, then tap <b>ADD ITINERARY</b>. Or tap <b>Add itinerary</b> below and pick the PDF.</li>
     <li><b>Pick the day.</b> Legs from different itineraries on the same date and tail are merged.</li>
     <li><b>Enter fuel on board.</b> The plan appears right away: what to add before departure and what to buy at each stop to get the fees waived.</li>
+    <li><b>Winds are optional.</b> The plan starts from the itinerary block times (still air). Tap <b>Get forecast winds</b> in the plan to pull the GFS forecast for each leg (FL260 westbound / FL250 eastbound) and recalculate; <b>Remove winds</b> goes back. Under <i>Edit legs</i> you can also type a wind by hand or the burn from the filed flight plan.</li>
   </ol>
   <div class="legend" style="margin-bottom:12px"><span><span class="sw warn">MIN 140</span>waiver minimum</span><span><span class="sw ok">$8.55</span>cheapest fuel</span><span><span class="sw bad">LOW FUEL</span>problem</span></div>
   <button id="helpDone" class="primary">Got it</button>
@@ -276,6 +293,7 @@ table.plan tr.hasfo td{border-bottom:0}
   <div class="wbbar vendbar" id="vendBar" hidden></div>
   <div class="wbbar" id="wbBar" hidden></div>
   <div class="manualbar" id="manualBar" hidden><span>You changed the plan by hand.</span><button id="resetPlan" class="small">Reset to suggested</button></div>
+  <div class="windbar" id="windBar" hidden></div>
   <div class="startline" id="startLine"></div>
   <div class="tablewrap"><table class="plan" id="planTable"><thead><tr><th>Stop</th><th class="num">Buy</th><th class="num">Fees saved</th><th class="num">Land</th><th class="num">Takeoff</th><th class="fo">Fuel order</th></tr></thead><tbody></tbody></table></div>
   <p class="hint">Tap any buy amount to change it.</p>
@@ -303,7 +321,8 @@ table.plan tr.hasfo td{border-bottom:0}
   </div>
   <div id="legList" class="legs" style="margin-top:12px"></div>
   <div class="toolbar" style="margin-top:10px"><button id="addStop" class="small">+ Add stop</button></div>
-  <p class="muted" style="margin:0">Block: type 105 for 1:05. Quick turn skips parking fees; Overnight adds them. Changing a Buy amount here works the same as tapping it in the plan.</p>
+  <p class="muted" style="margin:0">Block: type 105 for 1:05. Quick turn skips parking fees; Overnight adds them. Changing a Buy amount here works the same as tapping it in the plan.<br>
+  <b>Dep</b> is the local departure time (from the itinerary) used to pick the forecast hour. <b>Wind</b> overrides the forecast: + tailwind, − headwind, in knots. <b>Flight-plan burn</b> overrides everything for that leg; use it once the flight plan is filed. <b>FL</b> overrides the cruise level used for the forecast.</p>
   </details>
 </section>
 
@@ -314,8 +333,12 @@ table.plan tr.hasfo td{border-bottom:0}
     <label class="f">Min landing fuel (lbs)<input type="number" id="minLand" step="10"></label>
     <label class="f">Usable capacity (lbs)<input type="number" id="cap" step="10"></label>
     <label class="f">Mains capacity (lbs)<input type="number" id="mainsCap" step="10"></label>
+    <label class="f">Cruise TAS (kt)<input type="number" id="tas" step="5"></label>
+    <label class="f">Taxi per leg (min, no wind)<input type="number" id="taxi" step="1"></label>
+    <label class="f">Cruise FL westbound<input type="number" id="flW" step="10"></label>
+    <label class="f">Cruise FL eastbound<input type="number" id="flE" step="10"></label>
   </div>
-  <p class="muted" style="margin:8px 0 0">King Air 350 defaults. Changes stay on this phone.</p>
+  <p class="muted" style="margin:8px 0 0">King Air 350 defaults. Changes stay on this phone. Winds: itinerary times are treated as still air; the forecast wind stretches or shrinks the airborne part (the itinerary's Flight time, or block minus taxi when there is none) by TAS ÷ groundspeed. Westbound = magnetic course 180–359°.</p>
   </details>
 </section>
 
@@ -609,19 +632,27 @@ const FBOS=[
   "asOf": "2026-10-28"
  }
 ];
-const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,burn:850,minLand:1200,cap:3611,mainsCap:2550,dv:2,
- legs:[{to:"SBA",block:"0:42",ground:"quick",buy:null},{to:"NUQ",block:"1:18",ground:"quick",buy:null},
+// v45 aircraft defaults: King Air 350 cruise TAS, taxi allowance per leg, cruise levels by direction (hemispheric rule: east = odd, west = even)
+const AC_DEF={burn:850,minLand:1200,cap:3611,mainsCap:2550,tas:300,taxi:18,flW:260,flE:250,windsOn:false};   // windsOn: forecast winds are opt-in per trip (the "Get forecast winds" button)
+const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,...AC_DEF,dv:3,
+ legs:[{to:"SBA",block:"0:42",ground:"quick",buy:null,depTime:"07:48"},{to:"NUQ",block:"1:18",ground:"quick",buy:null},
        {to:"HHR",block:"1:24",ground:"quick",buy:null},{to:"VGT",block:"1:12",ground:"quick",buy:null},
        {to:"VNY",block:"1:18",ground:"end",buy:null}]};
 
-const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",burn:850,minLand:1200,cap:3611,mainsCap:2550,dv:2,legs:[{to:"",block:"",ground:"quick",buy:null}]};
+const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",...AC_DEF,dv:3,legs:[{to:"",block:"",ground:"quick",buy:null}]};
+// the per-phone aircraft settings that carry from one trip to the next
+const acSettings=()=>({burn:trip.burn,minLand:trip.minLand,cap:trip.cap,mainsCap:trip.mainsCap,tas:trip.tas,taxi:trip.taxi,flW:trip.flW,flE:trip.flE,endTarget:trip.endTarget||"",extraMode:trip.extraMode});
 let fbos=structuredClone(FBOS), trip;   // fbos is replaced by the shared library once db answers
 function load(){
   try{ trip=JSON.parse(localStorage.getItem("cfp.trip")) }catch(e){}
   if(!trip||!Array.isArray(trip.legs)) trip=structuredClone(DEFAULT_TRIP);
   // v34 defaults: 850 lb/hr burn, 1,200 lb min landing. Phones still on the old defaults (700 / 1,000) move up once; values someone set by hand stay.
   if(!trip.mainsCap) trip.mainsCap=2550;
-  if(trip.dv!==2){ if(+trip.burn===700||!trip.burn) trip.burn=850; if(+trip.minLand===1000||!trip.minLand) trip.minLand=1200; trip.dv=2 }
+  if(trip.dv<2||trip.dv==null){ if(+trip.burn===700||!trip.burn) trip.burn=850; if(+trip.minLand===1000||!trip.minLand) trip.minLand=1200; trip.dv=2 }
+  if(trip.dv<3){ trip.dv=3 }
+  // v45: wind settings for phones that saved a trip before winds existed
+  if(!(+trip.tas>0)) trip.tas=AC_DEF.tas; if(trip.taxi==null||trip.taxi==="") trip.taxi=AC_DEF.taxi;
+  if(!(+trip.flW>0)) trip.flW=AC_DEF.flW; if(!(+trip.flE>0)) trip.flE=AC_DEF.flE; if(trip.windsOn==null) trip.windsOn=false;
 }
 function save(){ try{ localStorage.setItem("cfp.trip",JSON.stringify(trip)) }catch(e){} }
 const $=id=>document.getElementById(id);
@@ -635,13 +666,68 @@ function hours(s){ s=(s||"").trim().replace(/[.,;]/g,":");
 function blockFmt(h){ const t=Math.round(h*60); return Math.floor(t/60)+":"+String(t%60).padStart(2,"0") }
 function fboFor(icao){ const k=(icao||"").trim().toUpperCase().replace(/^K/,""); return fbos.find(f=>f.icao.toUpperCase()===k) }
 
+// ---- v45: winds aloft ----
+// Airport positions (lat*100, lon*100, time-zone index) from OurAirports: every US/Mexico large+medium airport, BC/AB Canada,
+// and all CA/NV/AZ/OR/WA airports with a K-code. Used only to sample the forecast along each leg and to turn itinerary local times into UTC.
+const TZS=["America/Los_Angeles","America/Denver","America/Phoenix","America/Chicago","America/New_York","America/Anchorage","Pacific/Honolulu","America/Vancouver","America/Edmonton","America/Regina","America/Winnipeg","America/Toronto","America/Halifax","America/St_Johns","America/Whitehorse","America/Yellowknife","America/Iqaluit","America/Mexico_City","America/Tijuana","America/Mazatlan","America/Hermosillo","America/Chihuahua","America/Cancun","America/Ciudad_Juarez","America/Adak"];
+const APT={AAT:[4148,-12057,0],ABE:[4065,-7544,4],ABI:[3241,-9968,3],ABQ:[3504,-10661,1],ABR:[4545,-9842,3],ABY:[3153,-8420,4],ACK:[4125,-7006,4],ACT:[3161,-9723,3],ACV:[4098,-12411,0],ACY:[3946,-7458,4],ADH:[3481,-9667,3],ADW:[3881,-7687,4],AEG:[3515,-10679,1],AEX:[3133,-9255,3],AFW:[3299,-9732,3],AGC:[4035,-7993,4],AGS:[3337,-8196,4],AHC:[4027,-12015,0],AHN:[3395,-8333,4],AIA:[4205,-10280,1],AJO:[3390,-11760,0],AKR:[4104,-8147,4],ALB:[4275,-7380,4],ALI:[2774,-9803,3],ALM:[3284,-10599,1],ALN:[3889,-9005,3],ALO:[4256,-9240,3],ALS:[3743,-10587,1],ALW:[4609,-11829,0],AMA:[3522,-10171,3],ANB:[3359,-8586,3],AND:[3449,-8271,4],AOO:[4030,-7832,4],APA:[3957,-10485,1],APC:[3821,-12228,0],APF:[2615,-8178,4],APG:[3947,-7617,4],APN:[4508,-8356,4],APV:[3458,-11719,0],ARA:[3004,-9188,3],ART:[4399,-7602,4],ASE:[3922,-10687,1],AST:[4616,-12388,0],ATL:[3364,-8443,4],ATW:[4426,-8852,3],ATY:[4491,-9715,3],AUG:[4432,-6980,4],AUN:[3895,-12108,0],AUS:[3020,-9766,3],AUW:[4493,-8963,3],AVL:[3544,-8254,4],AVP:[4134,-7572,4],AVQ:[3241,-11122,2],AVX:[3340,-11842,0],AWO:[4816,-12216,0],AXN:[4587,-9539,3],AZC:[3696,-11301,2],AZO:[4223,-8555,4],BAB:[3914,-12144,0],BAD:[3250,-9366,3],BAF:[4216,-7272,4],BAK:[3926,-8590,4],BAM:[4060,-11687,0],BAZ:[2970,-9804,3],BBD:[3118,-9932,3],BBG:[3653,-9320,3],BCE:[3771,-11214,1],BCT:[2638,-8011,4],BDE:[4873,-9461,3],BDL:[4194,-7269,4],BDN:[4409,-12120,0],BDR:[4116,-7313,4],BED:[4247,-7129,4],BFD:[4180,-7864,4],BFF:[4187,-10360,1],BFI:[4753,-12230,0],BFL:[3543,-11906,0],BFM:[3063,-8807,3],BGM:[4221,-7598,4],BGR:[4481,-6883,4],BHB:[4445,-6836,4],BHM:[3356,-8675,3],BIF:[3185,-10638,3],BIH:[3737,-11836,0],BIL:[4581,-10854,1],BIS:[4677,-10075,3],BIX:[3041,-8892,3],BJC:[3991,-10512,1],BJI:[4751,-9493,3],BKE:[4484,-11781,0],BKF:[3970,-10475,1],BKL:[4152,-8168,4],BKW:[3779,-8112,4],BLF:[3730,-8121,4],BLH:[3362,-11472,0],BLI:[4879,-12254,0],BLU:[3928,-12071,0],BLV:[3855,-8984,3],BMG:[3915,-8662,4],BMI:[4048,-8892,3],BNA:[3612,-8668,3],BNG:[3392,-11685,0],BNO:[4359,-11896,0],BOI:[4356,-11622,1],BOK:[4207,-12429,0],BOS:[4236,-7101,4],BPI:[4259,-11011,1],BPK:[3637,-9247,3],BPT:[2995,-9402,3],BQK:[3126,-8147,4],BRD:[4640,-9413,3],BRL:[4078,-9113,3],BRO:[2591,-9743,3],BTL:[4231,-8525,4],BTM:[4595,-11250,1],BTR:[3053,-9115,3],BTV:[4447,-7315,4],BTY:[3686,-11679,0],BUF:[4294,-7873,4],BUR:[3420,-11836,0],BVI:[4077,-8039,4],BVS:[4847,-12242,0],BVY:[4258,-7092,4],BWC:[3299,-11552,0],BWG:[3696,-8642,3],BWI:[3918,-7667,4],BXK:[3342,-11269,2],BXM:[4389,-6994,4],BYH:[3596,-8994,3],BYI:[4254,-11377,1],BYS:[3528,-11663,0],BZN:[4578,-11115,1],CAE:[3394,-8112,4],CAK:[4092,-8144,4],CAR:[4687,-6802,4],CBBC:[5219,-12816,7],CBM:[3364,-8844,3],CCB:[3411,-11769,0],CCR:[3799,-12206,0],CCY:[4307,-9261,3],CDC:[3770,-11310,1],CDR:[4284,-10310,1],CDS:[3443,-10029,3],CEC:[4178,-12424,0],CEF:[4219,-7253,4],CEW:[3078,-8652,4],CEZ:[3730,-10863,1],CFT:[3296,-10921,2],CGF:[4157,-8149,4],CGI:[3723,-8957,3],CGZ:[3295,-11177,2],CHA:[3504,-8520,4],CHD:[3327,-11181,2],CHO:[3814,-7845,4],CHS:[3290,-8004,4],CIC:[3980,-12186,0],CID:[4188,-9171,3],CIU:[4624,-8446,4],CKB:[3930,-8023,4],CLE:[4141,-8185,4],CLL:[3059,-9636,3],CLM:[4812,-12350,0],CLR:[3313,-11552,0],CLS:[4668,-12298,0],CLT:[3521,-8094,4],CMA:[3421,-11909,0],CMH:[4000,-8289,4],CMI:[4004,-8828,3],CMR:[3531,-11219,2],CMX:[4717,-8849,4],CNM:[3234,-10426,1],CNO:[3397,-11764,0],CNU:[3767,-9549,3],CNY:[3876,-10975,1],COD:[4452,-10902,1],COE:[4777,-11682,0],COF:[2823,-8061,4],CON:[4320,-7150,4],COS:[3881,-10470,1],COU:[3882,-9222,3],CPM:[3389,-11824,0],CPR:[4291,-10646,1],CPU:[3815,-12065,0],CRE:[3381,-7872,4],CRG:[3034,-8151,4],CRP:[2777,-9750,3],CRQ:[3313,-11728,0],CRW:[3837,-8159,4],CSG:[3252,-8494,4],CSV:[3595,-8508,3],CTB:[4861,-11238,1],CUB:[3397,-8100,4],CVG:[3905,-8467,4],CVH:[3689,-12141,0],CVN:[3443,-10308,1],CVO:[4450,-12329,0],CVS:[3438,-10332,1],CWA:[4478,-8967,3],CXL:[3267,-11551,0],CXO:[3035,-9541,3],CXP:[3919,-11973,0],CYAZ:[4908,-12578,7],CYBD:[5239,-12660,7],CYBF:[5430,-11074,8],CYBL:[4995,-12527,7],CYBW:[5110,-11437,8],CYCD:[4905,-12387,7],CYCG:[4930,-11763,7],CYCP:[5212,-11928,7],CYCQ:[5569,-12163,7],CYDQ:[5574,-12018,7],CYEG:[5331,-11358,8],CYET:[5358,-11646,8],CYGE:[5130,-11698,7],CYHM:[4317,-7993,11],CYHZ:[4488,-6351,12],CYKA:[5070,-12045,7],CYLL:[5331,-11007,8],CYLW:[4996,-11938,7],CYMM:[5665,-11122,8],CYNJ:[4910,-12263,7],CYOD:[5440,-11028,8],CYOJ:[5862,-11717,8],CYOP:[5849,-11941,8],CYOW:[4532,-7567,11],CYPE:[5623,-11745,8],CYPK:[4921,-12271,7],CYPR:[5429,-13045,7],CYPW:[4983,-12450,7],CYPY:[5877,-11112,8],CYPZ:[5438,-12595,7],CYQB:[4679,-7139,11],CYQF:[5218,-11389,8],CYQG:[4228,-8296,11],CYQL:[4963,-11280,8],CYQQ:[4971,-12489,7],CYQU:[5518,-11889,8],CYQZ:[5303,-12251,7],CYRV:[5096,-11818,7],CYS:[4116,-10481,1],CYUL:[4547,-7374,11],CYVK:[5025,-11933,7],CYVR:[4919,-12318,7],CYWG:[4991,-9724,10],CYWL:[5218,-12205,7],CYXC:[4961,-11578,7],CYXE:[5217,-10670,9],CYXH:[5002,-11072,8],CYXJ:[5624,-12074,7],CYXS:[5388,-12267,7],CYXT:[5447,-12858,7],CYXX:[4903,-12236,7],CYYC:[5112,-11401,8],CYYD:[5482,-12718,7],CYYE:[5884,-12260,7],CYYF:[4946,-11960,7],CYYJ:[4865,-12343,7],CYYT:[4762,-5275,13],CYYZ:[4368,-7963,11],CYZH:[5529,-11478,8],CYZP:[5325,-13181,7],CYZT:[5068,-12737,7],CYZU:[5414,-11579,8],CYZY:[5530,-12313,7],CZAM:[5068,-11923,7],CZBB:[4907,-12301,7],CZGF:[4902,-11843,7],CZK:[4568,-12188,0],CZMT:[5403,-13212,7],CZPC:[4952,-11400,8],CZST:[5594,-12998,7],DAA:[3872,-7718,4],DAB:[2918,-8106,4],DAG:[3485,-11679,0],DAL:[3284,-9685,3],DAN:[3657,-7934,4],DAY:[3990,-8422,4],DBQ:[4240,-9071,3],DCA:[3885,-7704,4],DDC:[3776,-9997,3],DEC:[3983,-8887,3],DEN:[3986,-10467,1],DET:[4241,-8301,4],DEW:[4797,-11743,0],DFW:[3290,-9704,3],DGL:[3134,-10951,2],DHN:[3132,-8545,3],DHT:[3602,-10255,3],DIK:[4680,-10280,3],DLF:[2936,-10078,3],DLH:[4684,-9220,3],DLO:[3575,-11924,0],DLS:[4562,-12117,0],DMA:[3217,-11088,2],DMN:[3226,-10772,1],DNL:[3347,-8204,4],DOV:[3913,-7547,4],DPA:[4191,-8825,3],DRA:[3662,-11603,0],DRI:[3083,-9334,3],DRO:[3715,-10775,1],DRT:[2937,-10093,3],DSM:[4153,-9366,3],DTS:[3040,-8647,4],DTW:[4221,-8335,4],DUA:[3394,-9640,3],DUG:[3146,-10960,2],DUJ:[4118,-7890,4],DVL:[4812,-9891,3],DVO:[3814,-12256,0],DVT:[3369,-11208,2],DWA:[3858,-12186,0],DXR:[4137,-7348,4],DYS:[3242,-9985,3],EAR:[4073,-9901,3],EAT:[4740,-12021,0],EAU:[4487,-9148,3],ECG:[3626,-7617,4],ECP:[3036,-8580,3],EDC:[3040,-9757,3],EDU:[3853,-12179,0],EDW:[3491,-11789,0],EED:[3477,-11462,0],EEN:[4290,-7227,4],EET:[3318,-8678,3],EFD:[2961,-9516,3],EGE:[3964,-10692,1],EGI:[3065,-8652,4],EKA:[4080,-12411,0],EKN:[3889,-7986,4],EKO:[4082,-11579,0],ELD:[3322,-9281,3],ELM:[4216,-7689,4],ELN:[4703,-12053,0],ELO:[4782,-9183,3],ELP:[3181,-10638,1],ELY:[3930,-11484,0],EMT:[3409,-11804,0],END:[3634,-9792,3],ENV:[4072,-11403,1],ENW:[4260,-8793,3],EPH:[4731,-11952,0],ERI:[4208,-8017,4],ESC:[4572,-8709,4],ESF:[3139,-9229,3],ESW:[4725,-12119,0],EUG:[4412,-12321,0],EVV:[3804,-8753,3],EVW:[4127,-11104,1],EWB:[4168,-7096,4],EWN:[3507,-7704,4],EWR:[4069,-7417,4],EYW:[2456,-8176,4],FAF:[3713,-7661,4],FAR:[4692,-9682,3],FAT:[3678,-11972,0],FAY:[3499,-7888,4],FBG:[3513,-7894,4],FCH:[3673,-11982,0],FCS:[3868,-10476,1],FDY:[4101,-8367,4],FFO:[3983,-8405,4],FFZ:[3346,-11173,2],FHR:[4852,-12302,0],FHU:[3159,-11035,2],FKL:[4138,-7986,4],FLG:[3514,-11167,2],FLL:[2607,-8015,4],FLO:[3419,-7972,4],FLX:[3950,-11875,0],FME:[3909,-7676,4],FMN:[3674,-10823,1],FMY:[2659,-8186,4],FNL:[4045,-10501,1],FNT:[4297,-8374,4],FOD:[4255,-9419,3],FOE:[3895,-9566,3],FOT:[4055,-12413,0],FPR:[2750,-8037,4],FRG:[4073,-7341,4],FRI:[3905,-9676,3],FSD:[4359,-9674,3],FSI:[3465,-9840,3],FSM:[3534,-9437,3],FST:[3092,-10292,3],FTK:[3791,-8597,4],FTW:[3282,-9736,3],FTY:[3378,-8452,4],FUL:[3387,-11798,0],FWA:[4098,-8519,4],FXE:[2620,-8017,4],FYV:[3601,-9417,3],GAB:[3892,-11796,0],GAX:[3288,-11282,2],GBN:[3289,-11272,2],GCC:[4435,-10554,1],GCD:[4440,-11896,0],GCK:[3793,-10072,3],GCN:[3595,-11215,2],GDV:[4714,-10481,1],GEG:[4762,-11753,0],GEU:[3353,-11229,2],GFK:[4795,-9718,3],GFL:[4334,-7361,4],GGG:[3238,-9471,3],GGW:[4821,-10661,1],GJT:[3913,-10853,1],GLD:[3937,-10170,3],GLH:[3348,-9099,3],GLS:[2927,-9486,3],GMU:[3485,-8235,4],GNV:[2969,-8227,4],GON:[4133,-7205,4],GOO:[3922,-12100,0],GPI:[4831,-11426,1],GPT:[3041,-8907,3],GRB:[4448,-8813,3],GRF:[4708,-12258,0],GRI:[4097,-9831,3],GRK:[3107,-9783,3],GRR:[4288,-8552,4],GSB:[3534,-7796,4],GSO:[3610,-7994,4],GSP:[3490,-8222,4],GTB:[4406,-7572,4],GTF:[4748,-11137,1],GTR:[3345,-8859,3],GUC:[3853,-10693,1],GUP:[3551,-10879,1],GUS:[4065,-8615,4],GUY:[3669,-10151,3],GWO:[3350,-9009,3],GYI:[3371,-9667,3],GYR:[3342,-11238,2],GYY:[4162,-8741,4],HAF:[3751,-12250,0],HBG:[3126,-8925,3],HBR:[3499,-9905,3],HDN:[4048,-10722,1],HEF:[3872,-7752,4],HFD:[4174,-7265,4],HGR:[3971,-7773,4],HHR:[3392,-11833,0],HIB:[4738,-9284,3],HIF:[4112,-11197,1],HII:[3457,-11436,2],HIO:[4554,-12295,0],HJO:[3632,-11963,0],HKY:[3574,-8139,4],HLG:[4017,-8065,4],HLN:[4661,-11198,1],HMN:[3285,-10611,1],HMT:[3373,-11702,0],HND:[3597,-11513,0],HOB:[3269,-10322,1],HON:[4439,-9823,3],HOP:[3667,-8749,4],HOT:[3448,-9310,3],HOU:[2965,-9528,3],HPN:[4107,-7371,4],HQM:[4697,-12394,0],HRI:[4583,-11926,0],HRL:[2623,-9765,3],HRO:[3626,-9315,3],HRT:[3043,-8669,4],HST:[2549,-8038,4],HSV:[3464,-8677,3],HTH:[3854,-11863,0],HTS:[3837,-8256,4],HUA:[3468,-8668,3],HUF:[3945,-8731,4],HUL:[4612,-6779,4],HUT:[3807,-9786,3],HVN:[4126,-7289,4],HVR:[4854,-10976,1],HWD:[3766,-12212,0],HWO:[2600,-8024,4],HXD:[3222,-8070,4],HYA:[4167,-7028,4],HYI:[2989,-9786,3],HYR:[4603,-9144,3],HYS:[3884,-9927,3],HZY:[4178,-8070,4],IAB:[3762,-9727,3],IAD:[3894,-7746,4],IAG:[4311,-7895,4],IAH:[2998,-9534,3],ICT:[3765,-9743,3],IDA:[4351,-11207,1],IFP:[3515,-11456,2],IGM:[3526,-11394,2],IKK:[4107,-8785,3],ILG:[3968,-7561,4],ILM:[3427,-7791,4],ILN:[3943,-8379,4],IMT:[4582,-8811,4],IND:[3972,-8629,4],INK:[3178,-10320,3],INL:[4857,-9340,3],INS:[3659,-11567,0],INT:[3613,-8022,4],INW:[3502,-11072,2],IPL:[3284,-11557,0],IPT:[4124,-7692,4],IRK:[4009,-9254,3],ISM:[2829,-8144,4],ISO:[3533,-7761,4],ISP:[4080,-7310,4],ITH:[4249,-7646,4],IWA:[3331,-11165,2],IYK:[3566,-11783,0],IZA:[3461,-12008,0],JAC:[4361,-11074,1],JAN:[3231,-9008,3],JAX:[3049,-8169,4],JBR:[3583,-9065,3],JCT:[3051,-9976,3],JFK:[4064,-7378,4],JHW:[4215,-7925,4],JKL:[3759,-8332,4],JLN:[3715,-9450,3],JMS:[4693,-9868,3],JNX:[3554,-7839,4],JQF:[3539,-8071,4],JST:[4032,-7883,4],JWY:[3246,-9691,3],JXN:[4226,-8446,4],KIC:[3623,-12112,0],KLS:[4612,-12290,0],LAA:[3807,-10269,1],LAF:[4041,-8694,4],LAL:[2799,-8202,4],LAN:[4278,-8459,4],LAR:[4131,-10568,1],LAS:[3608,-11515,0],LAW:[3457,-9842,3],LAX:[3394,-11841,0],LBB:[3366,-10182,3],LBE:[4028,-7940,4],LBF:[4113,-10068,3],LBL:[3704,-10096,3],LBT:[3461,-7906,4],LBX:[2911,-9546,3],LCH:[3013,-9322,3],LCK:[3981,-8293,4],LEB:[4363,-7230,4],LEE:[2882,-8181,4],LEX:[3804,-8461,4],LFI:[3708,-7636,4],LFK:[3123,-9475,3],LFT:[3021,-9199,3],LGA:[4078,-7387,4],LGB:[3382,-11815,0],LGD:[4529,-11801,0],LGF:[3286,-11440,2],LGU:[4179,-11185,1],LHM:[3891,-12135,0],LIT:[3473,-9222,3],LKV:[4216,-12040,0],LLQ:[3364,-9175,3],LLR:[3926,-12375,0],LMT:[4216,-12173,0],LND:[4282,-10873,1],LNK:[4084,-9676,3],LNS:[4012,-7630,4],LOL:[4007,-11857,0],LOU:[3823,-8566,4],LOZ:[3708,-8408,4],LPC:[3467,-12047,0],LRD:[2754,-9946,3],LRF:[3492,-9215,3],LRU:[3229,-10692,1],LSE:[4388,-9126,3],LSF:[3233,-8499,4],LSN:[3706,-12087,0],LSV:[3624,-11503,0],LTS:[3467,-9927,3],LUF:[3353,-11238,2],LUK:[3910,-8442,4],LVK:[3769,-12182,0],LVM:[4570,-11045,1],LVS:[3565,-10514,1],LWB:[3786,-8040,4],LWL:[4112,-11492,0],LWM:[4272,-7112,4],LWS:[4637,-11701,0],LWT:[4705,-10947,1],LYH:[3733,-7920,4],MAE:[3699,-12011,0],MAF:[3194,-10220,3],MBG:[4555,-10041,3],MBS:[4353,-8408,4],MCB:[3118,-9047,3],MCC:[3867,-12140,0],MCE:[3728,-12051,0],MCF:[2785,-8252,4],MCI:[3930,-9471,3],MCK:[4021,-10059,3],MCN:[3269,-8365,4],MCO:[2843,-8131,4],MCW:[4316,-9333,3],MDH:[3778,-8925,3],MDT:[4019,-7676,4],MDW:[4179,-8775,3],MEI:[3233,-8875,3],MEM:[3504,-8998,3],MER:[3738,-12057,0],MEV:[3900,-11975,0],MFD:[4082,-8252,4],MFE:[2618,-9824,3],MFR:[4237,-12287,0],MGC:[4170,-8682,4],MGE:[3392,-8452,4],MGM:[3230,-8639,3],MGW:[3964,-7992,4],MHK:[3914,-9667,3],MHR:[3855,-12130,0],MHT:[4293,-7144,4],MHV:[3506,-11815,0],MIA:[2580,-8029,4],MIB:[4842,-10136,3],MIE:[4024,-8540,4],MIT:[3551,-11919,0],MIV:[3937,-7507,4],MKC:[3912,-9459,3],MKE:[4295,-8790,3],MKG:[4317,-8624,4],MKL:[3560,-8892,3],MLB:[2810,-8064,4],MLC:[3488,-9578,3],MLI:[4145,-9051,3],MLS:[4643,-10589,1],MLU:[3251,-9204,3],MMAA:[1676,-9975,17],MMAN:[2587,-10024,17],MMAS:[2170,-10232,17],MMBT:[1578,-9626,17],MMCB:[1883,-9926,17],MMCC:[2933,-10110,17],MMCE:[1865,-9180,17],MMCL:[2477,-10748,19],MMCM:[1850,-8833,22],MMCN:[2739,-10983,20],MMCP:[1982,-9050,17],MMCS:[3164,-10643,23],MMCU:[2870,-10596,21],MMCV:[2370,-9896,17],MMCY:[2055,-10089,17],MMCZ:[2051,-8693,22],MMDO:[2413,-10453,17],MMEP:[2142,-10484,19],MMES:[3179,-11660,18],MMGL:[2052,-10331,17],MMGM:[2797,-11093,20],MMH:[3763,-11884,0],MMHO:[2909,-11105,20],MMIA:[1928,-10358,17],MMIO:[2554,-10093,17],MMIT:[1645,-9509,17],MMJA:[1948,-9680,17],MMLC:[1800,-10222,17],MMLM:[2569,-10908,19],MMLO:[2099,-10148,17],MMLP:[2407,-11036,19],MMLT:[2599,-11135,19],MMMA:[2577,-9753,17],MMMD:[2093,-8965,17],MMML:[3263,-11524,18],MMMM:[1985,-10103,17],MMMT:[1810,-9458,17],MMMV:[2696,-10147,17],MMMX:[1944,-9907,17],MMMY:[2578,-10011,17],MMMZ:[2316,-10626,19],MMNG:[3123,-11098,20],MMNL:[2744,-9957,17],MMOX:[1700,-9673,17],MMPA:[2060,-9746,17],MMPB:[1916,-9837,17],MMPG:[2863,-10054,17],MMPN:[1940,-10204,17],MMPR:[2068,-10525,17],MMPS:[1588,-9709,17],MMQT:[2062,-10019,17],MMRX:[2601,-9823,17],MMSD:[2315,-10972,19],MMSL:[2295,-10994,19],MMSM:[1974,-9902,17],MMSP:[2226,-10094,17],MMT:[3392,-8080,4],MMTB:[1674,-9317,17],MMTC:[2556,-10340,17],MMTG:[1656,-9303,17],MMTJ:[3254,-11697,18],MMTL:[2017,-8766,22],MMTM:[2229,-9787,17],MMTO:[1934,-9957,17],MMTP:[1479,-9237,17],MMU:[4080,-7441,4],MMUN:[2104,-8687,22],MMV:[4519,-12314,0],MMVA:[1799,-9282,17],MMVR:[1914,-9619,17],MMZC:[2289,-10269,17],MMZH:[1760,-10146,17],MMZO:[1914,-10456,17],MOB:[3069,-8824,3],MOD:[3763,-12095,0],MOT:[4826,-10128,3],MPI:[3751,-12004,0],MPV:[4420,-7256,4],MQY:[3601,-8652,3],MRB:[3940,-7798,4],MRY:[3659,-12184,0],MSL:[3475,-8761,3],MSN:[4314,-8934,3],MSO:[4692,-11409,1],MSP:[4488,-9322,3],MSS:[4494,-7484,4],MSY:[2999,-9026,3],MTC:[4261,-8284,4],MTH:[2473,-8105,4],MTJ:[3851,-10789,1],MTN:[3933,-7641,4],MUI:[4044,-7657,4],MUO:[4304,-11587,1],MWA:[3775,-8902,3],MWH:[4721,-11932,0],MWL:[3278,-9806,3],MXF:[3238,-8637,3],MYF:[3282,-11714,0],MYL:[4489,-11610,1],MYR:[3368,-7893,4],MYV:[3910,-12157,0],MZJ:[3251,-11133,2],NBC:[3248,-8072,4],NBG:[2983,-9004,3],NCA:[3471,-7744,4],NDZ:[3070,-8702,4],NEL:[4003,-7435,4],NEW:[3004,-9003,3],NFG:[3330,-11736,0],NFL:[3942,-11870,0],NFW:[3277,-9744,3],NGP:[2769,-9729,3],NGU:[3694,-7629,4],NHK:[3829,-7641,4],NID:[3569,-11769,0],NIP:[3024,-8168,4],NJK:[3283,-11567,0],NKT:[3490,-7688,4],NKX:[3287,-11714,0],NLC:[3633,-11995,0],NMM:[3255,-8855,3],NOW:[4814,-12341,0],NPA:[3035,-8732,4],NQA:[3536,-8987,3],NQI:[2751,-9781,3],NQX:[2458,-8169,4],NRA:[4819,-12263,0],NRB:[3039,-8142,4],NRS:[3257,-11712,0],NSE:[3072,-8702,4],NSI:[3324,-11946,0],NTD:[3412,-11912,0],NTU:[3682,-7603,4],NUC:[3302,-11859,0],NUQ:[3742,-12205,0],NUW:[4835,-12266,0],NXP:[3430,-11616,0],NYG:[3850,-7731,4],NYL:[3265,-11461,2],NZY:[3270,-11721,0],OAJ:[3483,-7761,4],OAK:[3772,-12222,0],OAR:[3668,-12176,0],OFF:[4112,-9591,3],OFK:[4199,-9744,3],OGB:[3346,-8086,4],OGD:[4120,-11201,1],OGS:[4468,-7547,4],OKB:[3322,-11735,0],OKC:[3539,-9760,3],OKH:[4825,-12267,0],OLF:[4809,-10557,1],OLM:[4697,-12290,0],OLS:[3142,-11085,2],OLU:[4145,-9734,3],OMA:[4130,-9589,3],OMK:[4846,-11952,0],ONO:[4402,-11701,1],ONP:[4458,-12406,0],ONT:[3406,-11760,0],OPF:[2591,-8028,4],OQU:[4160,-7141,4],ORD:[4198,-8790,3],ORF:[3690,-7620,4],ORH:[4227,-7188,4],ORL:[2855,-8133,4],ORS:[4871,-12291,0],OSH:[4398,-8856,3],OSU:[4008,-8307,4],OTH:[4342,-12425,0],OTM:[4111,-9245,3],OVE:[3949,-12162,0],OWB:[3774,-8717,3],OWD:[4219,-7117,4],OXB:[3831,-7512,4],OXR:[3420,-11921,0],OZR:[3128,-8571,3],PAAQ:[6159,-14909,5],PABA:[7013,-14358,5],PABE:[6078,-16184,5],PABI:[6399,-14572,5],PABR:[7129,-15677,5],PABV:[6142,-14951,5],PACD:[5521,-16273,5],PACL:[6430,-14912,5],PACV:[6049,-14548,5],PACZ:[6178,-16604,5],PADE:[6607,-16277,5],PADK:[5188,-17664,24],PADL:[5904,-15851,5],PADQ:[5775,-15249,5],PADU:[5390,-16654,5],PAE:[4791,-12228,0],PAED:[6125,-14981,5],PAEH:[5865,-16206,5],PAEI:[6467,-14710,5],PAEM:[6279,-16449,5],PAEN:[6057,-15125,5],PAFA:[6482,-14786,5],PAFB:[6484,-14761,5],PAFE:[5696,-13391,5],PAFM:[6711,-15786,5],PAGA:[6474,-15694,5],PAGK:[6216,-14545,5],PAGM:[6377,-17173,5],PAGS:[5843,-13571,5],PAH:[3706,-8877,3],PAHC:[6219,-15977,5],PAHL:[6570,-15635,5],PAHN:[5924,-13552,5],PAHO:[5964,-15148,5],PAII:[5818,-15737,5],PAIK:[6698,-16044,5],PAIL:[5975,-15491,5],PAIM:[6599,-15370,5],PAJN:[5835,-13457,5],PAKN:[5868,-15665,5],PAKP:[6813,-15174,5],PAKT:[5536,-13171,5],PAKW:[5558,-13308,5],PALU:[6888,-16611,5],PAM:[3007,-8558,4],PAMC:[6295,-15561,5],PAMR:[6121,-14984,5],PAMY:[6037,-16627,5],PAN:[3426,-11134,2],PANC:[6118,-14999,5],PANI:[6158,-15954,5],PANN:[6455,-14907,5],PANT:[5504,-13157,5],PANV:[6265,-16019,5],PAO:[3746,-12211,0],PAOM:[6451,-16545,5],PAOR:[6296,-14193,5],PAOT:[6688,-16260,5],PAPB:[5658,-16966,5],PAPC:[6525,-16686,5],PAPG:[5680,-13295,5],PAPH:[5696,-15863,5],PAPM:[5902,-16183,5],PAQT:[7021,-15101,5],PARC:[6811,-14558,5],PARY:[6473,-15547,5],PASA:[6369,-17049,5],PASC:[7019,-14846,5],PASD:[5531,-16052,5],PASI:[5705,-13536,5],PASN:[5717,-17022,5],PASV:[6110,-15557,5],PASX:[6047,-15104,5],PASY:[5271,17411,5],PATK:[6232,-15009,5],PATL:[6289,-15598,5],PATQ:[7047,-15744,5],PAUN:[6389,-16080,5],PAVD:[6113,-14625,5],PAWD:[6013,-14942,5],PAWG:[5648,-13237,5],PAWI:[7064,-15999,5],PAWS:[6157,-14954,5],PAYA:[5951,-13966,5],PBF:[3417,-9194,3],PBG:[4465,-7347,4],PBI:[2668,-8010,4],PCW:[4152,-8287,4],PDK:[3388,-8430,4],PDT:[4570,-11884,0],PDX:[4559,-12260,0],PFC:[4520,-12396,0],PGA:[3692,-11145,2],PGD:[2692,-8199,4],PGV:[3564,-7738,4],PHBK:[2202,-15979,6],PHF:[3713,-7649,4],PHHN:[2080,-15601,6],PHIK:[2134,-15795,6],PHJH:[2096,-15667,6],PHJR:[2131,-15807,6],PHKO:[1974,-15605,6],PHL:[3987,-7524,4],PHLI:[2197,-15934,6],PHMK:[2115,-15710,6],PHMU:[2000,-15567,6],PHNG:[2145,-15777,6],PHNL:[2132,-15793,6],PHNY:[2079,-15695,6],PHOG:[2090,-15643,6],PHTO:[1972,-15505,6],PHX:[3344,-11201,2],PIA:[4066,-8969,3],PIB:[3147,-8934,3],PIE:[2791,-8269,4],PIH:[4291,-11260,1],PIR:[4438,-10029,3],PIT:[4049,-8023,4],PKB:[3935,-8144,4],PLN:[4557,-8480,4],PLU:[4710,-12229,0],PMD:[3463,-11808,0],PNA:[4280,-10981,1],PNC:[3673,-9710,3],PNE:[4008,-7501,4],PNS:[3047,-8719,3],POB:[3517,-7901,4],POC:[3409,-11778,0],POE:[3104,-9319,3],POU:[4163,-7388,4],PQI:[4669,-6804,4],PRB:[3567,-12063,0],PRC:[3465,-11242,2],PRX:[3364,-9545,3],PSC:[4626,-11912,0],PSM:[4308,-7082,4],PSP:[3383,-11651,0],PTK:[4267,-8342,4],PTV:[3603,-11906,0],PUB:[3829,-10450,1],PUW:[4674,-11711,0],PVD:[4173,-7143,4],PVF:[3872,-12075,0],PVU:[4022,-11172,1],PWK:[4211,-8790,3],PWM:[4365,-7031,4],PWT:[4749,-12276,0],RAL:[3395,-11744,0],RAP:[4405,-10306,1],RBG:[4324,-12336,0],RBL:[4015,-12225,0],RCA:[4415,-10310,3],RDD:[4051,-12229,0],RDG:[4038,-7597,4],RDM:[4425,-12115,0],RDR:[4796,-9740,3],RDU:[3588,-7879,4],REI:[3409,-11715,0],REO:[4258,-11789,0],RFD:[4220,-8910,3],RHI:[4563,-8947,3],RHP:[3520,-8386,4],RHV:[3733,-12182,0],RIC:[3751,-7732,4],RIL:[3953,-10773,1],RIR:[3399,-11741,0],RIU:[3849,-12110,0],RIV:[3388,-11726,0],RIW:[4306,-10846,1],RKD:[4406,-6910,4],RKS:[4159,-10907,1],RLD:[4631,-11930,0],RME:[4323,-7541,4],RMG:[3435,-8516,4],RND:[2953,-9828,3],RNH:[4515,-9254,3],RNM:[3304,-11692,0],RNO:[3950,-11977,0],RNT:[4749,-12222,0],ROA:[3733,-7998,4],ROC:[4312,-7767,4],ROW:[3330,-10453,1],RQE:[3565,-10907,2],RSL:[3887,-9881,3],RST:[4391,-9250,3],RSW:[2653,-8175,4],RUT:[4353,-7295,4],RVS:[3604,-9598,3],RWF:[4455,-9508,3],RWI:[3586,-7789,4],RWL:[4181,-10720,1],RYN:[3214,-11118,2],RYY:[3401,-8460,4],SAC:[3851,-12149,0],SAD:[3285,-10964,2],SAF:[3562,-10609,1],SAN:[3273,-11719,0],SAS:[3324,-11595,0],SAT:[2953,-9847,3],SAV:[3213,-8120,4],SAW:[4635,-8740,4],SBA:[3443,-11984,0],SBD:[3410,-11724,0],SBN:[4171,-8632,4],SBP:[3524,-12064,0],SBY:[3834,-7551,4],SCH:[4285,-7393,4],SCK:[3789,-12124,0],SDF:[3817,-8574,4],SDL:[3362,-11191,2],SDM:[3257,-11698,0],SDY:[4771,-10419,1],SEA:[4745,-12231,0],SEE:[3283,-11697,0],SEZ:[3485,-11179,2],SFB:[2877,-8123,4],SFF:[4768,-11732,0],SFO:[3762,-12237,0],SGF:[3725,-9339,3],SGH:[3984,-8384,4],SGJ:[2996,-8134,4],SGR:[2962,-9566,3],SGU:[3704,-11351,1],SHD:[3826,-7890,4],SHN:[4723,-12315,0],SHR:[4477,-10698,1],SHV:[3244,-9383,3],SIY:[4178,-12247,0],SJC:[3736,-12193,0],SJN:[3452,-10938,2],SJT:[3136,-10050,3],SKA:[4762,-11766,0],SKF:[2938,-9858,3],SKX:[3645,-10568,1],SLC:[4079,-11198,1],SLE:[4491,-12300,0],SLI:[3379,-11805,0],SLK:[4439,-7420,4],SLN:[3879,-9765,3],SME:[3705,-8462,4],SMF:[3870,-12159,0],SMN:[4512,-11388,1],SMO:[3402,-11845,0],SMX:[3490,-12046,0],SNA:[3368,-11787,0],SNS:[3666,-12161,0],SNY:[4110,-10299,1],SOA:[3059,-10065,3],SOW:[3426,-11001,2],SPB:[4577,-12286,0],SPI:[3984,-8968,3],SPS:[3399,-9849,3],SPZ:[3940,-11925,0],SQL:[3751,-12225,0],SRQ:[2739,-8255,4],SRR:[3346,-10554,1],SSC:[3397,-8047,4],SSF:[2934,-9847,3],SSI:[3115,-8139,4],STC:[4555,-9406,3],STJ:[3977,-9491,3],STL:[3875,-9037,3],STP:[4493,-9306,3],STS:[3851,-12281,0],SUN:[4350,-11430,1],SUS:[3866,-9065,3],SUU:[3826,-12193,0],SUX:[4240,-9638,3],SUZ:[3459,-9248,3],SVC:[3264,-10815,1],SVE:[4038,-12057,0],SVN:[3201,-8115,4],SWF:[4150,-7411,4],SWO:[3616,-9709,3],SYR:[4311,-7611,4],SZL:[3873,-9355,3],SZN:[3406,-11992,0],SZP:[3435,-11906,0],TBN:[3774,-9214,3],TCC:[3518,-10360,1],TCL:[3322,-8761,3],TCM:[4714,-12248,0],TCS:[3324,-10727,1],TCY:[3769,-12144,0],TDO:[4648,-12281,0],TEB:[4085,-7406,4],TEX:[3795,-10791,1],TIK:[3541,-9739,3],TIW:[4727,-12258,0],TIX:[2851,-8080,4],TLH:[3040,-8435,4],TLR:[3616,-11933,0],TMB:[2565,-8043,4],TMK:[4542,-12381,0],TNP:[3413,-11595,0],TNX:[3780,-11678,0],TOA:[3380,-11834,0],TOI:[3186,-8601,3],TOL:[4159,-8381,4],TOP:[3907,-9562,3],TPA:[2798,-8253,4],TPH:[3806,-11709,0],TPL:[3115,-9741,3],TRI:[3648,-8241,4],TRK:[3932,-12014,0],TRM:[3363,-11616,0],TSP:[3513,-11844,0],TTD:[4555,-12240,0],TTN:[4028,-7481,4],TTS:[2862,-8069,4],TUL:[3620,-9589,3],TUP:[3427,-8877,3],TUS:[3212,-11094,2],TVC:[4474,-8558,4],TVF:[4807,-9618,3],TVL:[3889,-12000,0],TWF:[4248,-11449,1],TXK:[3345,-9399,3],TYL:[3445,-11011,2],TYR:[3235,-9540,3],TYS:[3581,-8399,4],UAO:[4525,-12277,0],UDD:[3375,-11628,0],UIL:[4794,-12456,0],UIN:[3994,-9119,3],UKI:[3913,-12320,0],UNV:[4085,-7785,4],UOX:[3438,-8954,3],UTS:[3075,-9559,3],UUU:[4153,-7128,4],VAD:[3097,-8319,4],VBG:[3474,-12058,0],VCB:[3838,-12196,0],VCT:[2885,-9692,3],VCV:[3460,-11738,0],VEL:[4044,-10951,1],VGT:[3621,-11519,0],VIS:[3632,-11939,0],VLD:[3078,-8328,4],VNY:[3421,-11849,0],VOK:[4394,-9025,3],VPS:[3048,-8652,3],VPZ:[4145,-8701,4],VQQ:[3022,-8188,4],VRB:[2766,-8042,4],VTN:[4286,-10055,3],VUO:[4562,-12266,0],WHP:[3426,-11841,0],WJF:[3474,-11822,0],WLW:[3952,-12222,0],WMC:[4090,-11781,0],WRB:[3264,-8359,4],WRI:[4002,-7459,4],WRL:[4397,-10795,1],WST:[4135,-7180,4],WVI:[3694,-12179,0],WWD:[3901,-7491,4],WWR:[3644,-9952,3],WYS:[4469,-11112,1],XMR:[2847,-8057,4],XNA:[3628,-9431,3],XTA:[3724,-11581,0],XWA:[4826,-10375,3],YIP:[4224,-8353,4],YKM:[4657,-12054,0],YKN:[4292,-9739,3],YNG:[4126,-8068,4],ZZV:[3994,-8189,4]};
+function aptKey(icao){ const k=(icao||"").trim().toUpperCase(); return APT[k]? k : (APT[k.replace(/^K/,"")]? k.replace(/^K/,"") : (APT["K"+k]? "K"+k : null)) }
+function aptPos(icao){ const k=aptKey(icao); return k? {lat:APT[k][0]/100,lon:APT[k][1]/100,tz:TZS[APT[k][2]]} : null }
+const localTz=()=>{ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone||"America/Los_Angeles" }catch(e){ return "America/Los_Angeles" } };
+// local wall-clock time in a zone -> epoch ms (two passes handle the DST switch)
+function zonedToUtc(mdy,hhmm,tz){ const [m,d,y]=mdy.split("/").map(Number); const [H,M]=hhmm.split(":").map(Number); if(!(y>1990)||isNaN(H)) return null;
+  const guess=Date.UTC(y,m-1,d,H,M); const off=t=>{ const p={}; new Intl.DateTimeFormat("en-US",{timeZone:tz,hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}).formatToParts(new Date(t)).forEach(x=>p[x.type]=+x.value);
+    return Date.UTC(p.year,p.month-1,p.day,p.hour===24?0:p.hour,p.minute)-t };
+  let t=guess-off(guess); t=guess-off(t); return t }
+function todayMdy(){ const n=new Date(); return String(n.getMonth()+1).padStart(2,"0")+"/"+String(n.getDate()).padStart(2,"0")+"/"+n.getFullYear() }
+function addDays(mdy,n){ const [m,d,y]=mdy.split("/").map(Number); const dt=new Date(y,m-1,d+n); return String(dt.getMonth()+1).padStart(2,"0")+"/"+String(dt.getDate()).padStart(2,"0")+"/"+dt.getFullYear() }
+function hhmm(s){ s=(s||"").trim().replace(/[.,;]/g,":"); let m=/^(\d{1,2}):([0-5]\d)$/.exec(s); if(m&&+m[1]<24) return String(+m[1]).padStart(2,"0")+":"+m[2];
+  if(/^\d{3,4}$/.test(s)&&+s.slice(0,-2)<24&&+s.slice(-2)<60) return String(+s.slice(0,-2)).padStart(2,"0")+":"+s.slice(-2); return null }
+const R2D=180/Math.PI, D2R=Math.PI/180;
+function gcNm(a,b){ const p1=a.lat*D2R,p2=b.lat*D2R,dl=(b.lon-a.lon)*D2R; return 3440.065*Math.acos(Math.min(1,Math.sin(p1)*Math.sin(p2)+Math.cos(p1)*Math.cos(p2)*Math.cos(dl))) }
+function gcBrg(a,b){ const p1=a.lat*D2R,p2=b.lat*D2R,dl=(b.lon-a.lon)*D2R; const y=Math.sin(dl)*Math.cos(p2), x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl); return (Math.atan2(y,x)*R2D+360)%360 }
+function gcPoint(a,b,f){ const p1=a.lat*D2R,l1=a.lon*D2R,p2=b.lat*D2R,l2=b.lon*D2R; const d=gcNm(a,b)/3440.065; if(d<1e-6) return {lat:a.lat,lon:a.lon};
+  const A=Math.sin((1-f)*d)/Math.sin(d), B=Math.sin(f*d)/Math.sin(d); const x=A*Math.cos(p1)*Math.cos(l1)+B*Math.cos(p2)*Math.cos(l2), y=A*Math.cos(p1)*Math.sin(l1)+B*Math.cos(p2)*Math.sin(l2), z=A*Math.sin(p1)+B*Math.sin(p2);
+  return {lat:Math.atan2(z,Math.hypot(x,y))*R2D, lon:Math.atan2(y,x)*R2D} }
+const magVar=lon=>12-(lon+118)*0.5;                                    // rough magnetic variation (°E) across North America: 14°E at SFO, 2°E in Texas, 7°W on the east coast
+function legFrom(i){ return i===0? trip.start : trip.legs[i-1].to }
+// cruise level for a leg: by-hand override, else Clipper's rule (FL260 westbound / FL250 eastbound by magnetic course)
+function legFL(i){ const l=trip.legs[i]; if(+l.fl>0) return +l.fl; const a=aptPos(legFrom(i)), b=aptPos(l.to); if(!a||!b) return +trip.flW||260;
+  const mc=(gcBrg(a,b)-magVar((a.lon+b.lon)/2)+360)%360; return mc<180? (+trip.flE||250) : (+trip.flW||260) }
+const flToHpa=fl=>1013.25*Math.pow(1-2.25577e-5*fl*30.48,5.25588);    // ISA: a flight level is a pressure altitude, so the forecast is read at that isobaric level
+// Scheduled departure of leg i as epoch ms. Itinerary time if there is one, otherwise chained from the previous leg (+45 min turn) or 08:00 local.
+function legDepUtc(i){ const l=trip.legs[i]; const from=legFrom(i); const tz=(aptPos(from)||{}).tz||localTz(); const date=l.date||todayMdy();
+  if(l.depTime&&hhmm(l.depTime)){ const t=zonedToUtc(date,hhmm(l.depTime),tz); if(t) return {t,assumed:false} }
+  if(i===0) return {t:zonedToUtc(date,"08:00",tz),assumed:true};
+  const p=legDepUtc(i-1); if(!p||!p.t) return null; const pl=trip.legs[i-1];
+  if(pl.ground==="overnight"||(l.date&&pl.date&&l.date!==pl.date)) return {t:zonedToUtc(l.date||addDays(pl.date||date,1),"08:00",tz),assumed:true};
+  return {t:p.t+(hours(pl.block)+0.75)*3600e3,assumed:true} }
+// Still-air split of a block time into taxi (unaffected by wind) and airborne time. Crew itineraries carry a Flight time; otherwise block minus the taxi setting.
+function airSplit(block,leg){ const fl=leg&&hours(leg.flight); if(fl>0&&fl<=block) return {taxi:block-fl,air:fl,fromItin:true};
+  const taxi=Math.min(Math.max(0,+trip.taxi||0)/60, block*0.5); return {taxi,air:block-taxi,fromItin:false} }
+// Groundspeed along a route for the stored forecast segments at the current TAS. Returns the time ratio (wind ÷ still air).
+function windRatio(segs,tas){ if(!segs||!segs.length) return 1; let D=0,T=0;
+  segs.forEach(s=>{ const c=s.crs*D2R; const tw=s.u*Math.sin(c)+s.v*Math.cos(c), xw=s.u*Math.cos(c)-s.v*Math.sin(c); const gs=Math.max(60, Math.sqrt(Math.max(0,tas*tas-xw*xw))+tw); D+=s.d; T+=s.d/gs });
+  return D>0? T/(D/tas) : 1 }
+// How long leg i really takes and why: flight-plan burn, wind by hand, forecast wind, or still air.
+function legTiming(i){ const l=trip.legs[i]; const block=hours(l.block), tas=Math.max(100,+trip.tas||300); const sp=airSplit(block,l);
+  const out={block,air:sp.air,taxi:sp.taxi,itin:sp.fromItin,h:block,ratio:1,comp:0,src:"none",fl:legFL(i)};
+  if(!(block>0)) return out;
+  if(+l.planBurn>0){ out.src="plan"; return out }
+  if(l.wind!==""&&l.wind!=null&&!isNaN(+l.wind)){ const gs=Math.max(60,tas+ +l.wind); out.ratio=tas/gs; out.src="manual"; out.comp=+l.wind }
+  else if(trip.windsOn!==false&&l.fcst&&l.fcst.ok&&l.fcst.key===fcstKey(i)){ out.ratio=windRatio(l.fcst.segs,tas); out.src="fcst"; out.comp=Math.round(tas/out.ratio-tas) }
+  out.h=sp.taxi+sp.air*out.ratio; out.dMin=Math.round((out.h-block)*60); out.dLb=Math.round((out.h-block)*(+trip.burn||0));
+  return out }
+function fcstKey(i){ const l=trip.legs[i]; const d=legDepUtc(i); return [legFrom(i),l.to,d?Math.round(d.t/3600e3):"?",legFL(i)].join("|") }
+
 function compute(){
   const sb=+trip.startBuy||0, sf=fboFor(trip.start)||{};
   let fuel=(+trip.startFuel||0)+sb*LBS; const burn=+trip.burn||0; const rows=[]; let tot={gal:sb,lbs:sb*LBS,waived:0,owed:0,cost:0,unknownPrice:false};
   if(sb>0){ if(sf.price) tot.cost+=sb*sf.price; else tot.unknownPrice=true }
   trip.legs.forEach((leg,i)=>{
     const f=fboFor(leg.to)||{min:0,waive:0,landing:0,infra:0,parking:0,price:null};
-    const depart=fuel, land=depart-hours(leg.block)*burn;
+    const tm=legTiming(i); const legBurn= tm.src==="plan"? +leg.planBurn : tm.h*burn;
+    const depart=fuel, land=depart-legBurn;
     const isEnd=leg.ground==="end";
     const buy= isEnd?0 : (leg.buy==null? (f.min||0) : +leg.buy||0);
     const lbs=buy*LBS;
@@ -656,12 +742,113 @@ function compute(){
     else if(depart>+trip.cap) {check="OVER CAPACITY";cls="bad"}
     else if(land<+trip.minLand){check="LOW FUEL";cls="bad"}
     else if(!isEnd && (f.min||0)>0 && !met){check="FEE NOT WAIVED";cls="warn"}
-    rows.push({depart,land,buy,lbs,min:f.min||0,waived,owed,check,cls,f});
+    rows.push({depart,land,buy,lbs,min:f.min||0,waived,owed,check,cls,f,tm,legBurn});
     tot.gal+=buy; tot.lbs+=lbs; tot.waived+=waived; tot.owed+=owed;
     if(buy>0){ if(f.price) tot.cost+=buy*f.price; else tot.unknownPrice=true }
     fuel=land+lbs;
   });
   return {rows,tot,final:fuel};
+}
+
+// ---- Forecast winds: GFS via Open-Meteo, read on the phone, nothing stored anywhere else ----
+// Each leg is sampled every ~100 nm along the great circle at the time the airplane will be there; the wind at the leg's cruise
+// level is interpolated between isobaric levels (a flight level is a pressure altitude) and the segments are kept so the
+// groundspeed can be recomputed for any TAS without another fetch.
+const WX={levels:[500,450,400,375,350,325,300,275,250],models:["ncep_gfs_seamless","gfs_seamless",""],stale:6*3600e3,status:"idle",msg:"",at:0,errAt:0,timer:null,inflight:false};
+const WX_MODEL_NAME=m=>m?"GFS":"Open-Meteo best match";
+function windLegs(){ const out=[]; trip.legs.forEach((l,i)=>{ if(!l.to||!(hours(l.block)>0)||+l.planBurn>0) return; out.push(i) }); return out }
+function windNeeded(){ if(trip.windsOn===false) return []; const now=Date.now();
+  return windLegs().filter(i=>{ const l=trip.legs[i]; const k=fcstKey(i); if(!l.fcst||l.fcst.key!==k) return true; if(l.fcst.ok&&now-l.fcst.at>WX.stale) return true; return false }) }
+function scheduleWinds(){ clearTimeout(WX.timer); WX.timer=setTimeout(()=>fetchWinds(false),500) }
+async function fetchWinds(force){
+  if(WX.inflight) return; if(trip.windsOn===false) return;
+  const legs= force? windLegs() : windNeeded(); if(!legs.length) return;
+  if(!force&&WX.errAt&&Date.now()-WX.errAt<10*60e3) return;                 // after a failure, wait 10 min before trying again on our own
+  if(!navigator.onLine){ WX.status="error"; WX.msg="offline"; renderWindBar(); return }
+  // build sample points
+  const jobs=[]; const pts=[];
+  legs.forEach(i=>{ const l=trip.legs[i]; const key=fcstKey(i); const a=aptPos(legFrom(i)), b=aptPos(l.to); const dep=legDepUtc(i);
+    if(!a||!b){ l.fcst={key,ok:false,why:"no coordinates for "+(a?l.to:legFrom(i)),at:Date.now()}; return }
+    if(!dep||!dep.t){ l.fcst={key,ok:false,why:"no departure time",at:Date.now()}; return }
+    if(dep.t-Date.now()>15.5*86400e3){ l.fcst={key,ok:false,why:"more than 15 days out",at:Date.now()}; return }
+    const D=gcNm(a,b), n=Math.max(2,Math.ceil(D/100)); const sp=airSplit(hours(l.block),l); const t0=dep.t+Math.min(sp.taxi*3600e3/2,15*60e3);   // wheels up ~10 min after block out
+    const job={i,key,fl:legFL(i),D,pts:[],dep:dep.t,assumed:dep.assumed}; for(let j=0;j<=n;j++){ const p=gcPoint(a,b,j/n); p.t=t0+sp.air*3600e3*j/n; p.idx=pts.length; pts.push(p); job.pts.push(p) }
+    job.pts.forEach((p,j)=>{ if(j<n) p.crs=gcBrg(p,job.pts[j+1]); p.d= j<n? D/n : 0 }); jobs.push(job) });
+  if(!jobs.length){ WX.status="ok"; WX.at=Date.now(); save(); plan(); return }
+  WX.inflight=true; WX.status="loading"; WX.msg=""; renderWindBar();
+  try{
+    const tmin=Math.min(...pts.map(p=>p.t)), tmax=Math.max(...pts.map(p=>p.t));
+    const iso=t=>{ const d=new Date(t); return d.toISOString().slice(0,13)+":00" };
+    const vars=WX.levels.flatMap(L=>[`wind_speed_${L}hPa`,`wind_direction_${L}hPa`]).join(",");
+    const base=`https://api.open-meteo.com/v1/forecast?latitude=${pts.map(p=>p.lat.toFixed(2)).join(",")}&longitude=${pts.map(p=>p.lon.toFixed(2)).join(",")}&hourly=${vars}&wind_speed_unit=kn&timeformat=unixtime&timezone=UTC&start_hour=${iso(tmin-3600e3)}&end_hour=${iso(tmax+3600e3)}`;
+    let data=null, used=null, lastErr=null;
+    for(const m of WX.models){ try{ const r=await fetch(base+(m?"&models="+m:""),{cache:"no-store"}); const j=await r.json().catch(()=>null);
+        if(!r.ok||(j&&j.error)){ lastErr=new Error((j&&j.reason)||("HTTP "+r.status)); if(/model/i.test(lastErr.message)) continue; throw lastErr }
+        data=j; used=m; break } catch(e){ lastErr=e; if(!/model/i.test(e.message||"")) throw e } }
+    if(!data) throw lastErr||new Error("no data");
+    const locs=Array.isArray(data)? data : [data]; if(locs.length!==pts.length) throw new Error("unexpected response ("+locs.length+" of "+pts.length+" points)");
+    // wind (u,v) at each point: interpolate in time, then in ln(pressure) to the leg's flight level
+    const uvAt=(loc,t,hpa)=>{ const H=loc.hourly, T=H.time; if(!T||T.length<1) return null; const ts=t/1000; let k=0; while(k<T.length-2&&T[k+1]<=ts) k++;
+      const w= T.length>1? Math.min(1,Math.max(0,(ts-T[k])/(T[k+1]-T[k]))) : 0;
+      const lv=[]; WX.levels.forEach(L=>{ const s=H[`wind_speed_${L}hPa`], d=H[`wind_direction_${L}hPa`]; if(!s||!d) return;
+        const uv=(j)=>{ if(s[j]==null||d[j]==null) return null; const r=d[j]*D2R; return [-s[j]*Math.sin(r),-s[j]*Math.cos(r)] };
+        const a=uv(k), b=T.length>1?uv(k+1):a; if(!a||!b) return; lv.push({p:L,u:a[0]+(b[0]-a[0])*w,v:a[1]+(b[1]-a[1])*w}) });
+      if(!lv.length) return null; lv.sort((x,y)=>y.p-x.p);                 // high pressure (low altitude) first
+      if(hpa>=lv[0].p) return lv[0]; if(hpa<=lv[lv.length-1].p) return lv[lv.length-1];
+      for(let j=0;j<lv.length-1;j++){ if(hpa<=lv[j].p&&hpa>=lv[j+1].p){ const f=(Math.log(lv[j].p)-Math.log(hpa))/(Math.log(lv[j].p)-Math.log(lv[j+1].p)); return {u:lv[j].u+(lv[j+1].u-lv[j].u)*f, v:lv[j].v+(lv[j+1].v-lv[j].v)*f} } }
+      return lv[0] };
+    jobs.forEach(job=>{ const hpa=flToHpa(job.fl); const w=job.pts.map(p=>uvAt(locs[p.idx],p.t,hpa)); if(w.some(x=>!x)){ trip.legs[job.i].fcst={key:job.key,ok:false,why:"no wind data at FL"+job.fl,at:Date.now()}; return }
+      const segs=[]; for(let j=0;j<job.pts.length-1;j++) segs.push({d:+job.pts[j].d.toFixed(1),crs:Math.round(job.pts[j].crs),u:+((w[j].u+w[j+1].u)/2).toFixed(1),v:+((w[j].v+w[j+1].v)/2).toFixed(1)});
+      const mid=w[Math.floor(w.length/2)]; const spd=Math.round(Math.hypot(mid.u,mid.v)), dir=Math.round((Math.atan2(-mid.u,-mid.v)*R2D+360)%360)||360;
+      trip.legs[job.i].fcst={key:job.key,ok:true,segs,fl:job.fl,dist:Math.round(job.D),mid:{spd,dir},dep:job.dep,assumed:job.assumed,model:WX_MODEL_NAME(used),at:Date.now()} });
+    WX.status="ok"; WX.at=Date.now(); WX.errAt=0; WX.msg="";
+  }catch(e){ WX.status="error"; WX.errAt=Date.now(); WX.msg=(e&&e.message)||String(e); WX.errKeys=jobs.map(j=>j.key) }
+  finally{ WX.inflight=false; save(); plan() }
+}
+const fmtClock=t=>new Date(t).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+const fmtDayClock=t=>{ const d=new Date(t); return d.toLocaleDateString("en-US",{weekday:"short"})+" "+fmtClock(t) };
+const compTxt=(c,full)=> c>0? `<b class="tw">+${c} kt</b>${full?" tail":""}` : (c<0? `<b class="hw">−${-c} kt</b>${full?" head":""}` : "<b>0 kt</b>");
+const signMin=m=> (m>0?"+":m<0?"−":"")+Math.floor(Math.abs(m)/60)+":"+String(Math.abs(m)%60).padStart(2,"0");
+// Plain-text wind notes for the notes list and the PDF.
+function windNotes(r,plain){ const out=[]; const legs=trip.legs.map((l,i)=>({l,i,tm:r.rows[i].tm})).filter(x=>x.l.to&&x.tm.block>0);
+  const txt=c=> plain? ((c>0?"+":"")+c+" kt") : compTxt(c);
+  const f=legs.filter(x=>x.tm.src==="fcst"), m=legs.filter(x=>x.tm.src==="manual"), p=legs.filter(x=>x.tm.src==="plan"), none=legs.filter(x=>x.tm.src==="none");
+  if(f.length){ const at=Math.min(...f.map(x=>x.l.fcst.at)); const airTxt= f.every(x=>x.tm.itin)? "the itinerary flight time" : f.some(x=>x.tm.itin)? `the itinerary flight time (block minus ${fmt(+trip.taxi||0)} min where there is none)` : `block minus ${fmt(+trip.taxi||0)} min taxi`;
+    out.push(`Winds aloft (${f[0].l.fcst.model} forecast, fetched ${fmtDayClock(at)}; itinerary times treated as still air, wind applied to ${airTxt} at ${fmt(+trip.tas||0)} KTAS): `+f.map(x=>`${legFrom(x.i)}→${x.l.to} ${txt(x.tm.comp)} FL${x.tm.fl} (${signMin(x.tm.dMin)}, ${x.tm.dLb>0?"+":""}${fmt(x.tm.dLb)} lb${x.l.fcst.assumed?", departure time assumed":""})`).join("; ")+".") }
+  if(m.length) out.push("Wind entered by hand: "+m.map(x=>`${legFrom(x.i)}→${x.l.to} ${txt(x.tm.comp)} (${signMin(x.tm.dMin)}, ${x.tm.dLb>0?"+":""}${fmt(x.tm.dLb)} lb)`).join("; ")+".");
+  if(p.length) out.push("Burn from the filed flight plan: "+p.map(x=>`${legFrom(x.i)}→${x.l.to} ${fmt(+x.l.planBurn)} lb`).join("; ")+".");
+  if(none.length&&trip.windsOn!==false){ const why=none.map(x=>`${legFrom(x.i)}→${x.l.to}`+(x.l.fcst&&!x.l.fcst.ok&&x.l.fcst.key===fcstKey(x.i)?" ("+x.l.fcst.why+")":" (not fetched)")).join(", "); out.push(`No forecast wind for ${why}; still-air block time used${WX.status==="error"?" — the fetch failed: "+WX.msg:""}.`) }
+  if(trip.windsOn===false&&none.length) out.push("Winds: itinerary block times used as still air. Tap Get forecast winds in the plan to apply the GFS forecast.");
+  return out }
+function renderWindBar(){ const bar=$("windBar"); if(!bar) return; const r=compute(); const legs=windLegs();
+  const planLegs=trip.legs.map((l,i)=>i).filter(i=>trip.legs[i].to&&+trip.legs[i].planBurn>0);
+  if(!legs.length&&!planLegs.length){ bar.hidden=true; return } bar.hidden=false;
+  const on=trip.windsOn!==false, loading=WX.status==="loading";
+  const cur=i=>{ const l=trip.legs[i]; return l.fcst&&l.fcst.key===fcstKey(i) };                                   // forecast on file for the leg as it is now
+  const byHand=legs.filter(i=>trip.legs[i].wind!==""&&trip.legs[i].wind!=null);
+  const missing=legs.filter(i=>!(trip.legs[i].wind!==""&&trip.legs[i].wind!=null)&&!(cur(i)&&trip.legs[i].fcst.ok));   // legs that would still be still air
+  const unfetched=missing.filter(i=>!cur(i));                                                                      // ...because nothing was fetched for them (legs edited since, or never)
+  const covered=on&&!missing.length;
+  const failedNow= WX.status==="error" && unfetched.length>0 && unfetched.every(i=>(WX.errKeys||[]).includes(fcstKey(i)));   // the legs still missing are the ones the last fetch failed on (not legs edited since)
+  bar.classList.toggle("err",on&&failedNow);
+  const chips=[]; trip.legs.forEach((l,i)=>{ if(!l.to||!(hours(l.block)>0)&&!(+l.planBurn>0)) return; const tm=r.rows[i].tm; const lab=`<i>${legFrom(i)}→${l.to}</i>`;
+    if(tm.src==="plan") chips.push(`<span>${lab} <b>${fmt(+l.planBurn)} lb</b> <i>flight plan</i></span>`);
+    else if(tm.src==="manual") chips.push(`<span>${lab} ${compTxt(tm.comp)} <i>by hand · ${signMin(tm.dMin)}</i></span>`);
+    else if(tm.src==="fcst") chips.push(`<span>${lab} ${compTxt(tm.comp)} <i>FL${tm.fl} · ${signMin(tm.dMin)}${l.fcst.assumed?" · dep assumed":""}</i></span>`);
+    else if(!on) chips.push(`<span>${lab} <i>still air</i></span>`);
+    else if(loading) chips.push(`<span>${lab} <i>fetching…</i></span>`);
+    else if(cur(i)&&!l.fcst.ok) chips.push(`<span>${lab} <i>no forecast: ${l.fcst.why}</i></span>`);
+    else chips.push(`<span>${lab} <i>not fetched · still air</i></span>`) });
+  let title, src="", btns="";
+  if(!on){ title="Winds: still air"; src="Itinerary block times used as they are"+(byHand.length||planLegs.length?" except where a wind or flight-plan burn was entered by hand":"")+". Get forecast winds pulls the GFS forecast for each leg's route, level and time and recalculates the plan.";
+    btns='<button class="primary" id="windGet"'+(loading?" disabled":"")+'>Get forecast winds</button>' }
+  else if(loading){ title="Fetching forecast winds…"; btns='<button class="small" disabled>Fetching…</button>' }
+  else if(failedNow){ title="Couldn't fetch the forecast"; src=WX.msg+". Legs without a wind use still-air block times."; btns='<button class="primary small" id="windRefresh">Try again</button><button class="small" id="windOff">Remove winds</button>' }
+  else { const f=trip.legs.map(l=>l.fcst).filter(x=>x&&x.ok); const at=f.length?Math.min(...f.map(x=>x.at)):0; const old=at&&Date.now()-at>WX.stale;
+    title= unfetched.length? "Forecast winds · update needed" : "Forecast winds applied";
+    src=(f.length?`${f[0].model} forecast at cruise level, sampled along each leg at its ETA · fetched ${fmtDayClock(at)}`:"")+(unfetched.length?` · <b>${unfetched.length===legs.length?"legs changed":unfetched.length+" leg"+(unfetched.length>1?"s":"")+" changed"} since, tap Update</b>`:"")+(old?' · <b>older than 6 h, refresh</b>':"")+(WX.status==="error"&&!unfetched.length?` · <b>refresh failed</b> (${WX.msg}), showing the earlier fetch`:"")+" · planning estimate, confirm with the briefing / filed plan.";
+    btns=`<button class="small${unfetched.length||old?" primary":""}" id="windRefresh">${unfetched.length?"Update":"Refresh"}</button><button class="small" id="windOff">Remove winds</button>` }
+  bar.innerHTML=`<span class="wt">${title}</span><span class="wl">${on?chips.join(""):""}</span><span class="wb">${btns}</span>${src?`<span class="src">${src}</span>`:""}`;
 }
 
 // Preferred fuel vendor: "confirmed" = named on a Clipper itinerary (or set by Craig); "brand" = only the FBO's fuel brand from public directories; "unknown" = nothing on file.
@@ -739,6 +926,7 @@ function render(){
   rendering=true;
   $("tripName").value=trip.name||""; $("startApt").value=trip.start||""; $("startFuel").value=trip.startFuel;
   $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap; $("mainsCap").value=trip.mainsCap||2550; $("endTarget").value=trip.endTarget||"";
+  $("tas").value=trip.tas; $("taxi").value=trip.taxi; $("flW").value=trip.flW; $("flE").value=trip.flE;
   const r=compute(); const list=$("legList"); list.innerHTML=""; const noFuel=(trip.startFuel===""||trip.startFuel==null);
   const hasLegs=trip.legs.some(l=>l.to), hasPool=pool.legs.length>0;
   let from=trip.start;
@@ -757,6 +945,16 @@ function render(){
           <option value="end"${isEnd?" selected":""}>Trip end</option></select></label>
         <label class="f">Buy gal${ov}${isEnd?'<input type="text" value="–" disabled>':`<input type="number" id="buy${i}" value="${row.buy}" data-i="${i}" data-k="buy" step="5" min="0" inputmode="numeric">`}</label>
       </div>
+      <div class="leg-in2">
+        <label class="f">Dep (local${(()=>{const d=legDepUtc(i); return d&&d.assumed&&!leg.depTime?", assumed":""})()})<input type="text" id="dep${i}" value="${leg.depTime||""}" data-i="${i}" data-k="depTime" inputmode="numeric" placeholder="${(()=>{const d=legDepUtc(i); if(!d||!d.t) return "HH:MM"; const tz=(aptPos(legFrom(i))||{}).tz||localTz(); try{ return "~"+new Date(d.t).toLocaleTimeString("en-US",{timeZone:tz,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}) }catch(e){ return "HH:MM" }})()}"></label>
+        <label class="f">Wind kt (+tail / −head)<input type="number" id="wind${i}" value="${leg.wind==null?"":leg.wind}" data-i="${i}" data-k="wind" step="5" inputmode="numeric" placeholder="${row.tm.src==="fcst"?"fcst "+(row.tm.comp>0?"+":"")+row.tm.comp:(trip.windsOn!==false?"no fcst":"still air")}"></label>
+        <label class="f">Flight-plan burn (lb)<input type="number" id="pb${i}" value="${+leg.planBurn>0?leg.planBurn:""}" data-i="${i}" data-k="planBurn" step="10" min="0" inputmode="numeric" placeholder="${fmt(row.tm.h*(+trip.burn||0))}"></label>
+        <label class="f">FL (forecast level)<input type="number" id="fl${i}" value="${+leg.fl>0?leg.fl:""}" data-i="${i}" data-k="fl" step="10" min="100" max="350" inputmode="numeric" placeholder="${row.tm.fl}"></label>
+      </div>
+      <div class="leg-wind">${(()=>{ const t=row.tm; if(!(t.block>0)) return "";
+        if(t.src==="plan") return `Burn <b>${fmt(+leg.planBurn)} lb</b> from the flight plan (block × ${fmt(+trip.burn||0)} would be ${fmt(t.block*(+trip.burn||0))} lb)`;
+        const w= t.src==="manual"? `wind by hand ${compTxt(t.comp,true)}` : t.src==="fcst"? `forecast ${compTxt(t.comp,true)} at FL${t.fl}${leg.fcst&&leg.fcst.mid?` (${String(leg.fcst.mid.dir).padStart(3,"0")}°/${leg.fcst.mid.spd} kt mid-route)`:""}` : (trip.windsOn===false?"still air":(leg.fcst&&!leg.fcst.ok&&leg.fcst.key===fcstKey(i)?"no forecast ("+leg.fcst.why+"), still air":"still air"));
+        return `${w} · block ${blockFmt(t.block)}${t.src!=="none"?` → <b>${blockFmt(t.h)}</b> (${signMin(t.dMin)}, ${t.dLb>0?"+":""}${fmt(t.dLb)} lb)`:""} · burn <b>${fmt(row.legBurn)} lb</b>` })()}</div>
       <div class="leg-out">
         <div><small>Takeoff</small><b>${noFuel?"–":fmt(row.depart)}</b></div>
         <div><small>Land</small><b>${noFuel?"–":fmt(row.land)}</b></div>
@@ -768,7 +966,7 @@ function render(){
     list.appendChild(card); from=leg.to;
   });
   $("legsSummary").innerHTML= hasLegs? `Edit legs <small>· ${trip.start||"?"} → ${trip.legs.filter(l=>l.to).map(l=>l.to).join(" → ")}</small>` : "Edit legs";
-  $("acSummary").innerHTML=`Aircraft settings <small>· ${fmt(+trip.burn||0)} lb/hr · ${fmt(+trip.minLand||0)} min landing · ${fmt(+trip.cap||0)} cap · ${fmt(+trip.mainsCap||2550)} mains</small>`;
+  $("acSummary").innerHTML=`Aircraft settings <small>· ${fmt(+trip.burn||0)} lb/hr · ${fmt(+trip.minLand||0)} min landing · ${fmt(+trip.cap||0)} cap · ${fmt(+trip.mainsCap||2550)} mains · ${fmt(+trip.tas||0)} KTAS · FL${trip.flW}/FL${trip.flE}</small>`;
 
   // ---- start card: three steps ----
   const worst=r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="bad")||r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="warn");
@@ -810,7 +1008,7 @@ function render(){
       tr.innerHTML=`<td class="stop">${leg.to}${isEnd?' <span class="muted" style="font-family:var(--sans);font-weight:400;font-size:13px">end</span>':`<span class="minref">${row.min?"min "+row.min:"no min"}</span>${leg.ground==="overnight"?'<span class="vendor" style="color:var(--fg)">overnight</span>':""}${vendorTag(leg.to)}`}</td>
         <td class="num buy"${isEnd?"":` data-edit="${i}"`}>${isEnd?"–":galCell(i,row.buy,row.lbs,"pbuy"+i,`data-i="${i}" data-k="buy"`)}</td>
         <td class="num">${isEnd?"–":(row.waived?money(row.waived):"–")}</td>
-        <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}</td>
+        <td class="num">${fmt(row.land)}${row.cls==="bad"?' <span class="pill bad">'+row.check+'</span>':""}${row.tm.src==="plan"?'<small class="wtag">FLT PLAN</small>':(row.tm.src!=="none"?`<small class="wtag ${row.tm.comp<0?"hw":(row.tm.comp>0?"tw":"")}">${row.tm.comp<0?"HW "+(-row.tm.comp):(row.tm.comp>0?"TW "+row.tm.comp:"CALM")}${row.tm.src==="manual"?" ✎":""}</small>`:"")}</td>
         <td class="num">${isEnd?"–":fmt(row.land+row.lbs)+(row.land+row.lbs>wbLimit()?'<span class="wbflag">W&amp;B</span>':"")}</td>
         <td class="fo">${isEnd?"":foCell(fuelOrder(row.land,row.land+row.lbs,row.buy))}</td>`;
       tb.appendChild(tr); if(!isEnd) foRow(tb,tr,fuelOrder(row.land,row.land+row.lbs,row.buy)); });
@@ -825,7 +1023,8 @@ function render(){
     const cheapest=uniq[0]&&uniq[0].to;
     tb.querySelectorAll("tr").forEach(tr=>{ const code=tr.querySelector("td.stop"); if(cheapest&&code&&code.firstChild&&code.firstChild.textContent===cheapest) code.querySelector(".minref").insertAdjacentHTML("afterend",'<span class="cheap">$'+uniq[0].f.price.toFixed(2)+'</span>') });
     $("planFoot").innerHTML=`<span><b>${fmt(r.tot.gal)} gal</b><small>total to buy</small></span><span><b>${money(r.tot.waived)}</b><small>fees saved</small></span><span><b>${money(r.tot.owed)}</b><small>still owed</small></span><span><b>${fmt(r.final)} lb</b><small>at end</small></span><span><b>${(r.tot.unknownPrice?"≥ ":"")+money(r.tot.cost)}</b><small>est. fuel cost</small></span>`;
-  }
+    renderWindBar();
+  } else $("windBar").hidden=true;
 
   // ---- sticky bar ----
   $("stickybar").hidden=!hasLegs;
@@ -849,6 +1048,7 @@ function render(){
   if(!noFuel){ const vg=vendorGaps(r); if(vg.length) notes.unshift(`Confirm fuel vendor at ${vg.map(x=>x.at).join(", ")} before ordering.`); }
   if(!noFuel){ const wb=wbStops(r); if(wb.length) notes.unshift(`Confirm weight & balance: takeoff above ${fmt(wbLimit())} lb (${Math.round(WB_FRAC*100)}% of max) at ${wb.map(x=>x.at).join(", ")}.`); }
   if(r.tot.unknownPrice) notes.push("Fuel cost excludes stops with no price on file.");
+  windNotes(r).forEach(n=>notes.push(n));
   $("notes").innerHTML=[...new Set(notes)].map(n=>`<li>${n}</li>`).join("");
   renderFbos(); save();
   rendering=false;
@@ -873,14 +1073,16 @@ document.addEventListener("input",e=>{
     if(k==="buy"){ l.buy= t.value===""? null : +t.value; trip.manual=true }
     else if(k==="to"){ l.to=t.value.toUpperCase() }
     else if(k==="block"){ l.block=t.value; l.blockEst=false }
+    else if(k==="wind"||k==="planBurn"||k==="fl"){ l[k]= t.value===""? null : +t.value }
     else l[k]=t.value;
     if(k==="ground"&&t.value==="end") l.buy=null;
-    plan(); if(k==="to"||k==="block"||k==="buy"){ const el=$(t.id); if(el){el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length) }catch(_){} } }
-  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",mainsCap:"mainsCap",endTarget:"endTarget"};
+    plan(); if(k==="to"||k==="block"||k==="buy"||k==="wind"||k==="planBurn"||k==="fl"||k==="depTime"){ const el=$(t.id); if(el){el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length) }catch(_){} } }
+  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",mainsCap:"mainsCap",endTarget:"endTarget",tas:"tas",taxi:"taxi",flW:"flW",flE:"flE"};
     if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; plan(); const el=$(keep); if(el) el.focus() } }
 });
 document.addEventListener("focusout",e=>{ const t=e.target; if(rendering) return;
   if(t.dataset&&t.dataset.k==="block"&&t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; if(l.block&&hours(l.block)>0){ l.block=blockFmt(hours(l.block)); render() } }
+  if(t.dataset&&t.dataset.k==="depTime"&&t.dataset.i!=null){ const l=trip.legs[+t.dataset.i]; const v=hhmm(l.depTime); if(l.depTime&&v&&v!==l.depTime){ l.depTime=v; plan() } else if(l.depTime&&!v){ l.depTime=""; plan() } }
   if(t.id&&t.id.startsWith("pbuy")){ const v=t.value===""?null:Math.max(0,+t.value);
     if(t.id==="pbuyS"){ if((+trip.startBuy||0)!==(v||0)){ trip.startBuy=v||0; trip.manual=true } }
     else { const l=trip.legs[+t.dataset.i]; const cur=compute().rows[+t.dataset.i].buy; if(v!==cur){ l.buy=v; trip.manual=true } }
@@ -905,10 +1107,12 @@ document.addEventListener("click",e=>{
   else if(b.id==="pvShare") shareCurrentPdf();
   else if(b.id==="pvPrint") printCurrentPdf();
   else if(b.id==="resetPlan"){ trip.manual=false; editBuy=null; autoPlan() }
+  else if(b.id==="windGet"||b.id==="windRefresh"){ trip.windsOn=true; WX.errAt=0; WX.status="idle"; fetchWinds(true) }
+  else if(b.id==="windOff"){ trip.windsOn=false; WX.status="idle"; WX.msg=""; plan() }
   else if(b.id==="modeCheap"||b.id==="modeMin"){ trip.extraMode= b.id==="modeMin"?"min":"cheap"; trip.manual=false; plan() }
   else if(b.id==="pasteBtn") pasteFromClipboard();
   else if(b.id==="pasteToggle") showPastePrompt($("pasteBox").hidden,true);
-  else if(b.id==="manualBtn"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,mainsCap:trip.mainsCap,endTarget:trip.endTarget||""}); currentDayKey=null; $("legsDetails").open=true; render(); go("legsDetails","to0") }
+  else if(b.id==="manualBtn"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),acSettings()); currentDayKey=null; $("legsDetails").open=true; render(); go("legsDetails","to0") }
   else if(b.dataset.fetch){ const url=b.dataset.fetch; b.textContent="Fetching…"; b.disabled=true;
     (async()=>{ try{ const r=await fetch(url,{credentials:"include",mode:"cors"}); if(!r.ok) throw new Error("HTTP "+r.status); const blob=await r.blob();
         if(!/pdf/i.test(blob.type)&&blob.size<2000) throw new Error("not a PDF ("+blob.type+")"); importPdf(new File([blob],"itinerary.pdf",{type:"application/pdf"})); }
@@ -925,8 +1129,8 @@ document.addEventListener("click",e=>{
     editBuy=null; plan(); if(trip.startFuel===""||trip.startFuel==null) go("sectFuel","startFuel") }
   else if(b.id==="clearPool"){ pool={legs:[],fbo:[]}; savePool(); fbos=structuredClone(FBOS); currentDayKey=null; render(); const msg=$("importMsg"); msg.hidden=false; msg.className=""; msg.textContent="Imported itineraries cleared."; }
   else if(b.id==="copyDebug"){ const ta=$("importDebugText"); ta.select(); navigator.clipboard&&navigator.clipboard.writeText(ta.value).catch(()=>{}); b.textContent="Copied"; }
-  else if(b.id==="resetTrip"){ trip=structuredClone(EXAMPLE_TRIP); currentDayKey=null; editBuy=null; plan(); go("planPanel") }
-  else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),{burn:trip.burn,minLand:trip.minLand,cap:trip.cap,mainsCap:trip.mainsCap,endTarget:trip.endTarget||""}); currentDayKey=null; editBuy=null; $("importMsg").hidden=true; render(); window.scrollTo({top:0,behavior:"smooth"}) }
+  else if(b.id==="resetTrip"){ trip=Object.assign(structuredClone(EXAMPLE_TRIP),acSettings(),{endTarget:""}); currentDayKey=null; editBuy=null; plan(); go("planPanel") }
+  else if(b.id==="clearTrip"){ trip=Object.assign(structuredClone(DEFAULT_TRIP),acSettings()); currentDayKey=null; editBuy=null; $("importMsg").hidden=true; render(); window.scrollTo({top:0,behavior:"smooth"}) }
 });
 if(matchMedia("(max-width:640px)").matches) $("libDetails").open=false;
 // ---- Summary PDF (jsPDF, built on the phone; nothing is uploaded) ----
@@ -935,7 +1139,7 @@ function loadJsPDF(){ if(window.jspdf) return Promise.resolve(); if(!jspdfP) jsp
   sc.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"; sc.onload=ok; sc.onerror=()=>{ jspdfP=null; err(new Error("Could not load the PDF maker. Check the connection and try again.")) }; document.head.appendChild(sc) }); return jspdfP }
 function preloadPdf(){ if(pdfPre) return; pdfPre=true; loadJsPDF().catch(()=>{ pdfPre=false });
   fetch("icon-192.png").then(r=>r.ok?r.blob():null).then(b=>{ if(!b) return; const fr=new FileReader(); fr.onload=()=>{ logoData=fr.result }; fr.readAsDataURL(b) }).catch(()=>{}) }
-const pdfTxt=t=>String(t==null?"":t).replace(/→/g,">").replace(/≥/g,">=").replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[^\x20-\x7E -ÿ–—•]/g,"");
+const pdfTxt=t=>String(t==null?"":t).replace(/→/g,">").replace(/≥/g,">=").replace(/−/g,"-").replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[^\x20-\x7E -ÿ–—•]/g,"");
 function pdfName(){ const n=(trip.name||"").replace(/\//g,"-").replace(/\s*·\s*/g," ").replace(/[^\w\-+ ]/g,"").replace(/\s+/g," ").trim(); return "Fuel plan"+(n?" "+n:"")+".pdf" }
 function buildSummaryPdf(){
   const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:"pt",format:"letter"});
@@ -968,7 +1172,8 @@ function buildSummaryPdf(){
   { const sf=fboFor(trip.start)||{}; orders.push({fo:fuelOrder(onBoard,dep,sb),date:(trip.legs.find(l=>l.date)||{}).date,code:trip.start||"Start",sub:"before departure  •  "+fmt(onBoard)+" lb on board",gal:sb,lbs:sb*LBS,land:null,to:dep,end:false,bad:false}); }
   legs.forEach(({l,row})=>{ const end=l.ground==="end";
     const sub= end? "trip end" : [(row.min?"min "+row.min+" gal":"no minimum"), (row.waived?"saves "+money(row.waived):(row.min>0&&row.buy<row.min?"fee NOT waived":"")), (l.ground==="overnight"?"overnight":"")].filter(Boolean).join("  •  ");
-    orders.push({fo:end?null:fuelOrder(row.land,row.land+row.lbs,row.buy),date:l.date,code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min}); });
+    const wt= row.tm.src==="plan"? "flt plan burn" : row.tm.src!=="none"? ((row.tm.comp<0?"HW "+(-row.tm.comp):row.tm.comp>0?"TW "+row.tm.comp:"calm")+" kt"+(row.tm.src==="manual"?" (by hand)":"")) : "";
+    orders.push({fo:end?null:fuelOrder(row.land,row.land+row.lbs,row.buy),date:l.date,code:l.to,sub,gal:end?null:row.buy,lbs:row.lbs,land:row.land,to:end?null:row.land+row.lbs,end,bad:row.cls==="bad",check:row.check,below:!end&&row.min>0&&row.buy<row.min,wt}); });
   const pdfMulti=new Set(orders.map(o=>o.date).filter(Boolean)).size>1;
   orders.forEach((o,i)=>{ const h=o.end?34:48;
     if(pdfMulti&&o.date&&(i===0||o.date!==orders[i-1].date)){ if(y+16+h>720){ doc.addPage(); y=M }
@@ -1000,7 +1205,8 @@ function buildSummaryPdf(){
     // land / takeoff
     doc.setFontSize(11);
     doc.setFont("helvetica",o.bad?"bold":"normal"); col(o.bad?RED:INK); doc.text(o.land==null?"–":fmt(o.land),C.land,top,{align:"right"});
-    if(o.bad){ doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.text(pdfTxt(o.check),C.land,low,{align:"right"}); doc.setFontSize(11) }
+    if(o.bad){ doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.text(pdfTxt(o.check),C.land,o.end?top+12:low,{align:"right"}); doc.setFontSize(11) }
+    else if(o.wt){ doc.setFont("helvetica","normal"); doc.setFontSize(7.5); col(GRAY); doc.text(pdfTxt(o.wt),C.land,o.end?top+12:low,{align:"right"}); doc.setFontSize(11) }
     if(!o.end){ const wbHit=o.to>wbLimit(); doc.setFont("helvetica","normal"); col(INK); doc.text(fmt(o.to),C.to,top,{align:"right"});
       if(wbHit){ doc.setFont("helvetica","bold"); doc.setFontSize(7.5); col(AMBER); doc.text("CONFIRM W&B",C.to,low,{align:"right"}) } }
     y+=h; });
@@ -1029,6 +1235,7 @@ function buildSummaryPdf(){
   if(trip.manual) notes.push("This plan includes buy amounts changed by hand.");
   { const est=trip.legs.filter(l=>l.blockEst&&l.to); if(est.length) notes.push(`Block times estimated from a passenger itinerary (flight time + 0:${PAX_TAXI}) for legs to ${est.map(l=>l.to).join(", ")}.`); }
   if(lastPlanNote) notes.push(lastPlanNote.trim());
+  windNotes(r,true).forEach(n=>notes.push(n));
   if(priced.length) notes.push("Cheapest fuel today: "+priced.filter((x,i,a)=>a.findIndex(z=>z.to===x.to)===i).map(x=>x.to+" $"+x.f.price.toFixed(2)).join(", ")+".");
   legs.forEach(({l,row})=>{ if(row.cls==="bad") notes.push(`${l.to}: ${row.check}.`); if(l.ground!=="end"&&row.min>0&&row.buy<row.min) notes.push(`${l.to}: buying less than the ${row.min} gal minimum, so the ${money(row.f.waive)} fee is not waived.`);
     if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in the FBO library; fees unknown.`);
@@ -1038,7 +1245,7 @@ function buildSummaryPdf(){
     doc.setFont("helvetica","normal"); doc.setFontSize(9.5); col(INK);
     notes.forEach(n=>{ const lines=doc.splitTextToSize(pdfTxt(n),R-M-14); if(y+lines.length*12>740){ doc.addPage(); y=M } doc.text("•",M+2,y); doc.text(lines,M+14,y); y+=lines.length*12+3; }); y+=6; }
   // assumptions + footer
-  const assum=`Burn ${fmt(+trip.burn||0)} lb/hr  •  Min landing ${fmt(+trip.minLand||0)} lb  •  Capacity ${fmt(+trip.cap||0)} lb  •  Fuel wanted at end ${trip.endTarget?fmt(+trip.endTarget)+" lb":"= min landing"}  •  Extra fuel to ${trip.extraMode==="min"?"min stops only":"cheapest stop"}  •  Jet-A 6.7 lb/gal`;
+  const assum=`Burn ${fmt(+trip.burn||0)} lb/hr  •  Min landing ${fmt(+trip.minLand||0)} lb  •  Capacity ${fmt(+trip.cap||0)} lb  •  Fuel wanted at end ${trip.endTarget?fmt(+trip.endTarget)+" lb":"= min landing"}  •  Extra fuel to ${trip.extraMode==="min"?"min stops only":"cheapest stop"}  •  Jet-A 6.7 lb/gal  •  Winds: ${trip.windsOn===false?"off":`${fmt(+trip.tas||0)} KTAS, FL${trip.flW} west / FL${trip.flE} east, ${fmt(+trip.taxi||0)} min taxi per leg`}`;
   const pages=doc.getNumberOfPages();
   for(let pg=1;pg<=pages;pg++){ doc.setPage(pg); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); col(GRAY);
     if(pg===pages) doc.text(doc.splitTextToSize(pdfTxt(assum),R-M),M,742);
@@ -1098,19 +1305,19 @@ function parseItinerary(text){
   const hdr=/Leg\s*(\d+)\s*:\s*([A-Z0-9]{3,4})\s+([A-Z0-9]{3,4})\s+Part\s*(91|135)/g;
   const heads=[]; while((m=hdr.exec(t))) heads.push({n:+m[1],from:m[2],to:m[3],part:m[4],idx:m.index});
   heads.forEach((h,i)=>{ const blk=t.slice(h.idx, i+1<heads.length?heads[i+1].idx:undefined);
-    const bm=/Block:\s*(\d+:\d\d)/.exec(blk);
+    const bm=/Block:\s*(\d+:\d\d)/.exec(blk), fm=/Flight:\s*(\d+:\d\d)/.exec(blk), dsm=/Distance:\s*([\d,]+)\s*nm/.exec(blk);
     const dm=/DEPARTS:\s*\w{3},\s*(\w{3})\s*(\d{1,2})\w{0,2}\s*(\d\d:\d\d)/.exec(blk);
     const arm=/ARRIVES:\s*\w{3},\s*(\w{3})\s*(\d{1,2})\w{0,2}\s*(\d\d:\d\d)/.exec(blk);
     const pm=/Pax\s*\((\d+|TBD)\)/.exec(blk);
     const d=(mm)=>mm?`${MON[mm[1]]||"01"}/${String(mm[2]).padStart(2,"0")}/${year}`:null;
-    if(!det[h.n]) det[h.n]={n:h.n,from:h.from,to:h.to,part:h.part,block:bm?bm[1]:null,depDate:d(dm),depTime:dm?dm[3]:null,arrDate:d(arm),arrTime:arm?arm[3]:null,pax:pm?pm[1]:null}; });
+    if(!det[h.n]) det[h.n]={n:h.n,from:h.from,to:h.to,part:h.part,block:bm?bm[1]:null,flight:fm?fm[1]:null,dist:dsm?+dsm[1].replace(/,/g,""):null,depDate:d(dm),depTime:dm?dm[3]:null,arrDate:d(arm),arrTime:arm?arm[3]:null,pax:pm?pm[1]:null}; });
   const ns=[...new Set([...Object.keys(sum),...Object.keys(det)].map(Number))].sort((a,b)=>a-b);
   ns.forEach(n=>{ const a=sum[n], b=det[n];
     // The leg header ("Leg 1 : VNY SBA") is reliable in every extraction. A summary row is trusted only if it agrees
     // with that header (phones keep summary rows intact but scatter detail blocks; desktops do the reverse).
     const sumOk= a && (!b || (a.from===b.from && a.to===b.to));
     const p= sumOk? a : b;  if(!p) return;
-    const leg={n,from:p.from,to:p.to,block:p.block,depDate:p.depDate,depTime:p.depTime,arrDate:p.arrDate,arrTime:p.arrTime,pax:p.pax||(a||{}).pax||(b||{}).pax,part:(b||{}).part};
+    const leg={n,from:p.from,to:p.to,block:p.block,depDate:p.depDate,depTime:p.depTime,arrDate:p.arrDate,arrTime:p.arrTime,pax:p.pax||(a||{}).pax||(b||{}).pax,part:(b||{}).part,flight:(b||{}).flight||null,dist:(b||{}).dist||null};
     if(leg.from&&leg.to&&leg.block) out.legs.push(leg); });
   if(!out.legs.length){                       // Passenger itinerary: flight time only (no block, no fees). Block is estimated.
     const to24=(h,ap)=>{ let [H,M]=h.split(":").map(Number); ap=ap.toLowerCase(); if(ap==="pm"&&H<12)H+=12; if(ap==="am"&&H===12)H=0; return String(H).padStart(2,"0")+":"+String(M).padStart(2,"0") };
@@ -1175,14 +1382,15 @@ function loadDays(keys){
   const first=sel[0], last=sel[sel.length-1], after=days[days.indexOf(last)+1];
   const tails=[...new Set(sel.map(d=>d.tail))], trips=[...new Set(sel.flatMap(d=>d.trips))];
   const span= sel.length>1? `${(first.date||"?").slice(0,5)}–${last.date||"?"}` : (first.date||"?");
-  trip={name:`${span} · ${tails.join("/")} · ${trips.join("+")}`,start:first.legs[0].from,startFuel:"",burn:trip.burn||850,minLand:trip.minLand||1200,cap:trip.cap||3611,mainsCap:trip.mainsCap||2550,dv:2,
-    endTarget:trip.endTarget||"",extraMode:trip.extraMode,dayKeys:sel.map(d=>d.key),legs:[]};
+  const prevFcst={}; (trip.legs||[]).forEach((l,i)=>{ if(l.fcst) prevFcst[l.fcst.key]=l.fcst });   // keep forecasts already fetched for the same legs
+  trip=Object.assign({name:`${span} · ${tails.join("/")} · ${trips.join("+")}`,start:first.legs[0].from,startFuel:"",...AC_DEF,dv:3},acSettings(),{dayKeys:sel.map(d=>d.key),legs:[]});
   sel.forEach((d,di)=>{
     if(di>0){ const prevTo=trip.legs[trip.legs.length-1].to; if(prevTo!==d.legs[0].from) trip.legs.push({to:d.legs[0].from,block:"",ground:"quick",buy:null,gap:true,date:d.date}); }
     d.legs.forEach((l,i)=>{ let ground="quick";
       if(i===d.legs.length-1){ if(di<sel.length-1) ground="overnight";
         else ground=(after&&after.tail===d.tail&&after.legs[0].from===l.to&&l.to!=="VNY")? "overnight":"end"; }
-      trip.legs.push({to:l.to,block:l.block||"",blockEst:!!l.blockEst,ground,buy:null,gap:!!l.gap,date:d.date}); }); });
+      trip.legs.push({to:l.to,block:l.block||"",blockEst:!!l.blockEst,flight:l.flight||"",ground,buy:null,gap:!!l.gap,date:d.date,depTime:l.depTime||"",arrTime:l.arrTime||""}); }); });
+  trip.legs.forEach((l,i)=>{ const k=fcstKey(i); if(prevFcst[k]) l.fcst=prevFcst[k] });
 }
 function loadDay(key){ loadDays([key]) }
 let currentDayKey=null;   // legacy; selection now lives in trip.dayKeys
@@ -1195,7 +1403,7 @@ function applyItinerary(it){
   if(!it.legs.length) throw new Error("No legs found. Is this a Clipper crew or passenger itinerary?");
   // merge legs into the pool (replace any earlier copy of the same trip)
   pool.legs=pool.legs.filter(l=>l.tripId!==it.id);
-  it.legs.forEach(l=>pool.legs.push({tripId:it.id||"?",tail:it.aircraft||"?",n:l.n,from:l.from,to:l.to,block:l.block,blockEst:!!l.blockEst,depDate:l.depDate,depTime:l.depTime,arrDate:l.arrDate,arrTime:l.arrTime}));
+  it.legs.forEach(l=>pool.legs.push({tripId:it.id||"?",tail:it.aircraft||"?",n:l.n,from:l.from,to:l.to,block:l.block,blockEst:!!l.blockEst,flight:l.flight||null,dist:l.dist||null,depDate:l.depDate,depTime:l.depTime,arrDate:l.arrDate,arrTime:l.arrTime}));
   // merge fees
   const changes=[];
   Object.entries(it.fees).forEach(([icao,f])=>{
