@@ -215,7 +215,7 @@ table.plan tr.hasfo td{border-bottom:0}
 @media (max-width:640px){ .windbar{display:grid;grid-template-columns:1fr auto;align-items:center} .windbar .wt{grid-row:1;grid-column:1} .windbar .wb{grid-row:1;grid-column:2;margin-left:0} .windbar .wl{grid-row:2;grid-column:1/-1;flex-direction:column;gap:3px} .windbar .src{grid-row:3;grid-column:1/-1} }
 .hw{color:var(--bad)} .tw{color:var(--ok)}
 table.plan .wtag{display:block;font-family:var(--sans);font-weight:600;font-size:10px;letter-spacing:.03em;color:var(--muted);margin-top:2px}
-.leg-in2{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.leg-in2{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 .leg-in2 label.f input{width:100%}
 @media (max-width:640px){ .leg-in2{grid-template-columns:1fr 1fr} }
 .leg-wind{font-size:12px;color:var(--muted);font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -229,7 +229,7 @@ table.plan .wtag{display:block;font-family:var(--sans);font-weight:600;font-size
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v46</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v47</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -251,7 +251,7 @@ table.plan .wtag{display:block;font-family:var(--sans);font-weight:600;font-size
     <li><b>Add the itinerary.</b> In JetInsight open it, tap Share → <i>Clipper Fuel Planner</i>, then tap <b>ADD ITINERARY</b>. Or tap <b>Add itinerary</b> below and pick the PDF.</li>
     <li><b>Pick the day.</b> Legs from different itineraries on the same date and tail are merged.</li>
     <li><b>Enter fuel on board.</b> The plan appears right away: what to add before departure and what to buy at each stop to get the fees waived.</li>
-    <li><b>Winds are optional.</b> The plan starts from the itinerary block times (still air). Tap <b>Get forecast winds</b> in the plan to pull the GFS forecast for each leg (FL260 westbound / FL250 eastbound) and recalculate; <b>Remove winds</b> goes back. Under <i>Edit legs</i> you can also type a wind by hand or the burn from the filed flight plan.</li>
+    <li><b>Winds are optional.</b> Each leg's burn comes from the King Air 350 profile in Aircraft settings (taxi + climb + cruise by distance + descent), still air by default. Tap <b>Get forecast winds</b> in the plan to pull the GFS forecast for each leg (FL260 westbound / FL250 eastbound) and recalculate; <b>Remove winds</b> goes back. Under <i>Edit legs</i> you can also type a wind by hand or the burn from the filed flight plan.</li>
   </ol>
   <div class="legend" style="margin-bottom:12px"><span><span class="sw warn">MIN 140</span>waiver minimum</span><span><span class="sw ok">$8.55</span>cheapest fuel</span><span><span class="sw bad">LOW FUEL</span>problem</span></div>
   <button id="helpDone" class="primary">Got it</button>
@@ -322,23 +322,34 @@ table.plan .wtag{display:block;font-family:var(--sans);font-weight:600;font-size
   <div id="legList" class="legs" style="margin-top:12px"></div>
   <div class="toolbar" style="margin-top:10px"><button id="addStop" class="small">+ Add stop</button></div>
   <p class="muted" style="margin:0">Block: type 105 for 1:05. Quick turn skips parking fees; Overnight adds them. Changing a Buy amount here works the same as tapping it in the plan.<br>
-  <b>Dep</b> is the local departure time (from the itinerary) used to pick the forecast hour. <b>Wind</b> overrides the forecast: + tailwind, − headwind, in knots. <b>Flight-plan burn</b> overrides everything for that leg; use it once the flight plan is filed. <b>FL</b> overrides the cruise level used for the forecast.</p>
+  <b>Dep</b> is the local departure time (from the itinerary) used to pick the forecast hour. <b>Wind</b> overrides the forecast: + tailwind, − headwind, in knots. <b>Flight-plan burn</b> overrides everything for that leg; use it once the flight plan is filed. <b>Distance</b> comes from the itinerary (or great circle); type over it if the routing is longer. <b>FL</b> overrides the cruise level used for the forecast.</p>
   </details>
 </section>
 
 <section class="panel">
   <details id="acDetails"><summary id="acSummary">Aircraft settings</summary>
   <div class="settings" style="margin-top:12px">
-    <label class="f">Burn (lbs per block hr)<input type="number" id="burn" step="10"></label>
     <label class="f">Min landing fuel (lbs)<input type="number" id="minLand" step="10"></label>
     <label class="f">Usable capacity (lbs)<input type="number" id="cap" step="10"></label>
     <label class="f">Mains capacity (lbs)<input type="number" id="mainsCap" step="10"></label>
+    <label class="f">Contingency on airborne fuel (%)<input type="number" id="cont" step="1" min="0"></label>
+  </div>
+  <div class="sect-label" style="margin:14px 0 8px;font-size:13px">Burn profile per leg</div>
+  <div class="settings">
+    <label class="f">Taxi &amp; start (lbs)<input type="number" id="taxiLb" step="5"></label>
+    <label class="f">Climb fuel (lbs)<input type="number" id="climbLb" step="5"></label>
+    <label class="f">Climb time (min)<input type="number" id="climbMin" step="1"></label>
+    <label class="f">Climb distance (nm)<input type="number" id="climbNm" step="5"></label>
     <label class="f">Cruise TAS (kt)<input type="number" id="tas" step="5"></label>
-    <label class="f">Taxi per leg (min, no wind)<input type="number" id="taxi" step="1"></label>
+    <label class="f">Cruise burn (lbs/hr)<input type="number" id="cruisePph" step="10"></label>
+    <label class="f">Descent fuel (lbs)<input type="number" id="descLb" step="5"></label>
+    <label class="f">Descent time (min)<input type="number" id="descMin" step="1"></label>
+    <label class="f">Descent distance (nm)<input type="number" id="descNm" step="5"></label>
+    <label class="f">Fallback (lbs per block hr)<input type="number" id="burn" step="10"></label>
     <label class="f">Cruise FL westbound<input type="number" id="flW" step="10"></label>
     <label class="f">Cruise FL eastbound<input type="number" id="flE" step="10"></label>
   </div>
-  <p class="muted" style="margin:8px 0 0">King Air 350 defaults. Changes stay on this phone. Winds: itinerary times are treated as still air; the forecast wind stretches or shrinks the airborne part (the itinerary's Flight time, or block minus taxi when there is none) by TAS ÷ groundspeed. Westbound = magnetic course 180–359°.</p>
+  <p class="muted" style="margin:8px 0 0">King Air 350 defaults. Changes stay on this phone. Each leg burns taxi + climb + cruise + descent, where cruise = (distance − climb − descent distance) ÷ groundspeed × cruise burn, then the contingency is added to the airborne part. Legs shorter than climb + descent distance scale those two phases down. Distance comes from the itinerary or the airport table; the fallback rate is used only when it is unknown. Winds change the cruise groundspeed. Westbound = magnetic course 180–359°.</p>
   </details>
 </section>
 
@@ -633,15 +644,18 @@ const FBOS=[
  }
 ];
 // v45 aircraft defaults: King Air 350 cruise TAS, taxi allowance per leg, cruise levels by direction (hemispheric rule: east = odd, west = even)
-const AC_DEF={burn:850,minLand:1200,cap:3611,mainsCap:2550,tas:300,taxi:18,flW:260,flE:250,windsOn:false};   // windsOn: forecast winds are opt-in per trip (the "Get forecast winds" button)
-const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,...AC_DEF,dv:3,
+// v47 burn profile (Craig, 10/29/26, King Air 350 VNY-PDX): taxi 20 gal; climb 45 gal / 15-18 min / 60 nm to FL280; cruise 310 KTAS at ~106 gal/hr; descent 15 gal / 20 min / 80-90 nm.
+// "burn" (lb per block hour) is now only the fallback for a leg whose distance is unknown. windsOn: forecast winds are opt-in per trip (the "Get forecast winds" button).
+const AC_DEF={burn:850,minLand:1200,cap:3611,mainsCap:2550,tas:310,taxiLb:135,climbLb:300,climbMin:17,climbNm:60,cruisePph:710,descLb:100,descMin:20,descNm:85,cont:10,flW:260,flE:250,windsOn:false};
+const PROFILE_KEYS=["tas","taxiLb","climbLb","climbMin","climbNm","cruisePph","descLb","descMin","descNm","cont"];
+const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,...AC_DEF,dv:4,
  legs:[{to:"SBA",block:"0:42",ground:"quick",buy:null,depTime:"07:48"},{to:"NUQ",block:"1:18",ground:"quick",buy:null},
        {to:"HHR",block:"1:24",ground:"quick",buy:null},{to:"VGT",block:"1:12",ground:"quick",buy:null},
        {to:"VNY",block:"1:18",ground:"end",buy:null}]};
 
-const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",...AC_DEF,dv:3,legs:[{to:"",block:"",ground:"quick",buy:null}]};
+const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",...AC_DEF,dv:4,legs:[{to:"",block:"",ground:"quick",buy:null}]};
 // the per-phone aircraft settings that carry from one trip to the next
-const acSettings=()=>({burn:trip.burn,minLand:trip.minLand,cap:trip.cap,mainsCap:trip.mainsCap,tas:trip.tas,taxi:trip.taxi,flW:trip.flW,flE:trip.flE,endTarget:trip.endTarget||"",extraMode:trip.extraMode});
+const acSettings=()=>{ const o={burn:trip.burn,minLand:trip.minLand,cap:trip.cap,mainsCap:trip.mainsCap,flW:trip.flW,flE:trip.flE,endTarget:trip.endTarget||"",extraMode:trip.extraMode}; PROFILE_KEYS.forEach(k=>o[k]=trip[k]); return o };
 let fbos=structuredClone(FBOS), trip;   // fbos is replaced by the shared library once db answers
 function load(){
   try{ trip=JSON.parse(localStorage.getItem("cfp.trip")) }catch(e){}
@@ -651,8 +665,10 @@ function load(){
   if(trip.dv<2||trip.dv==null){ if(+trip.burn===700||!trip.burn) trip.burn=850; if(+trip.minLand===1000||!trip.minLand) trip.minLand=1200; trip.dv=2 }
   if(trip.dv<3){ trip.dv=3 }
   // v45: wind settings for phones that saved a trip before winds existed
-  if(!(+trip.tas>0)) trip.tas=AC_DEF.tas; if(trip.taxi==null||trip.taxi==="") trip.taxi=AC_DEF.taxi;
   if(!(+trip.flW>0)) trip.flW=AC_DEF.flW; if(!(+trip.flE>0)) trip.flE=AC_DEF.flE; if(trip.windsOn==null) trip.windsOn=false;
+  // v47: burn profile. A v45/v46 phone had tas 300 as a wind-only setting; the profile's 310 replaces it once.
+  if(trip.dv<4){ trip.tas=AC_DEF.tas; trip.dv=4 }
+  PROFILE_KEYS.forEach(k=>{ if(trip[k]==null||trip[k]===""||isNaN(+trip[k])) trip[k]=AC_DEF[k] }); delete trip.taxi;
 }
 function save(){ try{ localStorage.setItem("cfp.trip",JSON.stringify(trip)) }catch(e){} }
 const $=id=>document.getElementById(id);
@@ -702,22 +718,29 @@ function legDepUtc(i){ const l=trip.legs[i]; const from=legFrom(i); const tz=(ap
   const p=legDepUtc(i-1); if(!p||!p.t) return null; const pl=trip.legs[i-1];
   if(pl.ground==="overnight"||(l.date&&pl.date&&l.date!==pl.date)) return {t:zonedToUtc(l.date||addDays(pl.date||date,1),"08:00",tz),assumed:true};
   return {t:p.t+(hours(pl.block)+0.75)*3600e3,assumed:true} }
-// Still-air split of a block time into taxi (unaffected by wind) and airborne time. Crew itineraries carry a Flight time; otherwise block minus the taxi setting.
-function airSplit(block,leg){ const fl=leg&&hours(leg.flight); if(fl>0&&fl<=block) return {taxi:block-fl,air:fl,fromItin:true};
-  const taxi=Math.min(Math.max(0,+trip.taxi||0)/60, block*0.5); return {taxi,air:block-taxi,fromItin:false} }
 // Groundspeed along a route for the stored forecast segments at the current TAS. Returns the time ratio (wind ÷ still air).
 function windRatio(segs,tas){ if(!segs||!segs.length) return 1; let D=0,T=0;
   segs.forEach(s=>{ const c=s.crs*D2R; const tw=s.u*Math.sin(c)+s.v*Math.cos(c), xw=s.u*Math.cos(c)-s.v*Math.sin(c); const gs=Math.max(60, Math.sqrt(Math.max(0,tas*tas-xw*xw))+tw); D+=s.d; T+=s.d/gs });
   return D>0? T/(D/tas) : 1 }
-// How long leg i really takes and why: flight-plan burn, wind by hand, forecast wind, or still air.
-function legTiming(i){ const l=trip.legs[i]; const block=hours(l.block), tas=Math.max(100,+trip.tas||300); const sp=airSplit(block,l);
-  const out={block,air:sp.air,taxi:sp.taxi,itin:sp.fromItin,h:block,ratio:1,comp:0,src:"none",fl:legFL(i)};
-  if(!(block>0)) return out;
-  if(+l.planBurn>0){ out.src="plan"; return out }
+const profile=()=>{ const P={}; PROFILE_KEYS.forEach(k=>P[k]=+trip[k]>=0?+trip[k]:AC_DEF[k]); P.tas=Math.max(100,P.tas||AC_DEF.tas); return P };
+// Leg distance: typed by hand or from the itinerary (leg.dist), else great circle between the two airports.
+function legDist(i){ const l=trip.legs[i]; if(+l.dist>0) return {nm:+l.dist,src:l.distSrc||"hand"}; const a=aptPos(legFrom(i)), b=aptPos(l.to); if(a&&b) return {nm:Math.round(gcNm(a,b)),src:"gc"}; return null }
+// Fuel and time for leg i from the burn profile: taxi + climb + cruise (distance ÷ groundspeed) + descent, plus contingency on the airborne part.
+// Wind (forecast or by hand) changes the cruise groundspeed only. Flight-plan burn overrides everything; a leg with no known distance falls back to block × lb/hr.
+function legModel(i){ const l=trip.legs[i]; const P=profile(); const d=legDist(i); const tas=P.tas;
+  const out={ok:false,src:"none",comp:0,ratio:1,fuel:0,flight:0,cruiseH:0,dist:d?d.nm:null,distSrc:d?d.src:null,fl:legFL(i),itinBlock:hours(l.block),itinFlight:hours(l.flight),dMin:0,dLb:0,fallback:false,cont:P.cont};
   if(l.wind!==""&&l.wind!=null&&!isNaN(+l.wind)){ const gs=Math.max(60,tas+ +l.wind); out.ratio=tas/gs; out.src="manual"; out.comp=+l.wind }
   else if(trip.windsOn!==false&&l.fcst&&l.fcst.ok&&l.fcst.key===fcstKey(i)){ out.ratio=windRatio(l.fcst.segs,tas); out.src="fcst"; out.comp=Math.round(tas/out.ratio-tas) }
-  out.h=sp.taxi+sp.air*out.ratio; out.dMin=Math.round((out.h-block)*60); out.dLb=Math.round((out.h-block)*(+trip.burn||0));
+  if(d){ const cd=P.climbNm+P.descNm; let air0,air,t0,t;
+    if(d.nm<=cd){ const f=d.nm/cd; air0=air=f*(P.climbLb+P.descLb); t0=f*(P.climbMin+P.descMin)/60; t=t0*out.ratio; out.short=true }
+    else { const cn=d.nm-cd; const c0=cn/tas, c=c0*out.ratio; out.cruiseH=c; out.cruiseNm=cn;
+      air0=P.climbLb+c0*P.cruisePph+P.descLb; air=P.climbLb+c*P.cruisePph+P.descLb; t0=(P.climbMin+P.descMin)/60+c0; t=(P.climbMin+P.descMin)/60+c }
+    const k=1+P.cont/100; out.fuel0=P.taxiLb+air0*k; out.fuel=P.taxiLb+air*k; out.flight0=t0; out.flight=t; out.ok=true;
+    out.dMin=Math.round((t-t0)*60); out.dLb=Math.round(out.fuel-out.fuel0); }
+  else if(out.itinBlock>0){ out.fuel=out.fuel0=out.itinBlock*(+trip.burn||0); out.flight=out.flight0=out.itinBlock; out.ok=true; out.fallback=true; out.src="none"; out.comp=0; out.ratio=1 }   // no distance: wind can't be applied
+  if(+l.planBurn>0){ out.modelFuel=out.fuel; out.fuel=+l.planBurn; out.src="plan"; out.ok=true }
   return out }
+const legTiming=legModel;   // name kept for older call sites
 function fcstKey(i){ const l=trip.legs[i]; const d=legDepUtc(i); return [legFrom(i),l.to,d?Math.round(d.t/3600e3):"?",legFL(i)].join("|") }
 
 function compute(){
@@ -726,7 +749,7 @@ function compute(){
   if(sb>0){ if(sf.price) tot.cost+=sb*sf.price; else tot.unknownPrice=true }
   trip.legs.forEach((leg,i)=>{
     const f=fboFor(leg.to)||{min:0,waive:0,landing:0,infra:0,parking:0,price:null};
-    const tm=legTiming(i); const legBurn= tm.src==="plan"? +leg.planBurn : tm.h*burn;
+    const tm=legModel(i); const legBurn=tm.fuel;
     const depart=fuel, land=depart-legBurn;
     const isEnd=leg.ground==="end";
     const buy= isEnd?0 : (leg.buy==null? (f.min||0) : +leg.buy||0);
@@ -738,7 +761,7 @@ function compute(){
     let check="OK",cls="ok";
     if(trip.startFuel===""||trip.startFuel==null){check="ENTER FUEL ON BOARD";cls="warn"}
     else if(!leg.to){check="ENTER AIRPORT";cls="warn"}
-    else if(leg.gap&&!hours(leg.block)){check="GAP — ENTER BLOCK";cls="warn"}
+    else if(leg.gap&&!tm.ok){check="GAP — ENTER DISTANCE";cls="warn"}
     else if(depart>+trip.cap) {check="OVER CAPACITY";cls="bad"}
     else if(land<+trip.minLand){check="LOW FUEL";cls="bad"}
     else if(!isEnd && (f.min||0)>0 && !met){check="FEE NOT WAIVED";cls="warn"}
@@ -756,7 +779,7 @@ function compute(){
 // groundspeed can be recomputed for any TAS without another fetch.
 const WX={levels:[500,450,400,375,350,325,300,275,250],models:["ncep_gfs_seamless","gfs_seamless",""],stale:6*3600e3,status:"idle",msg:"",at:0,errAt:0,timer:null,inflight:false};
 const WX_MODEL_NAME=m=>m?"GFS":"Open-Meteo best match";
-function windLegs(){ const out=[]; trip.legs.forEach((l,i)=>{ if(!l.to||!(hours(l.block)>0)||+l.planBurn>0) return; out.push(i) }); return out }
+function windLegs(){ const out=[]; trip.legs.forEach((l,i)=>{ if(!l.to||+l.planBurn>0||!legDist(i)) return; out.push(i) }); return out }
 function windNeeded(){ if(trip.windsOn===false) return []; const now=Date.now();
   return windLegs().filter(i=>{ const l=trip.legs[i]; const k=fcstKey(i); if(!l.fcst||l.fcst.key!==k) return true; if(l.fcst.ok&&now-l.fcst.at>WX.stale) return true; return false }) }
 function scheduleWinds(){ clearTimeout(WX.timer); WX.timer=setTimeout(()=>fetchWinds(false),500) }
@@ -771,8 +794,8 @@ async function fetchWinds(force){
     if(!a||!b){ l.fcst={key,ok:false,why:"no coordinates for "+(a?l.to:legFrom(i)),at:Date.now()}; return }
     if(!dep||!dep.t){ l.fcst={key,ok:false,why:"no departure time",at:Date.now()}; return }
     if(dep.t-Date.now()>15.5*86400e3){ l.fcst={key,ok:false,why:"more than 15 days out",at:Date.now()}; return }
-    const D=gcNm(a,b), n=Math.max(2,Math.ceil(D/100)); const sp=airSplit(hours(l.block),l); const t0=dep.t+Math.min(sp.taxi*3600e3/2,15*60e3);   // wheels up ~10 min after block out
-    const job={i,key,fl:legFL(i),D,pts:[],dep:dep.t,assumed:dep.assumed}; for(let j=0;j<=n;j++){ const p=gcPoint(a,b,j/n); p.t=t0+sp.air*3600e3*j/n; p.idx=pts.length; pts.push(p); job.pts.push(p) }
+    const D=gcNm(a,b), n=Math.max(2,Math.ceil(D/100)); const air=Math.max(0.2,legModel(i).flight0||D/310); const t0=dep.t+12*60e3;   // wheels up ~12 min after block out; samples spread over the still-air flight time
+    const job={i,key,fl:legFL(i),D,pts:[],dep:dep.t,assumed:dep.assumed}; for(let j=0;j<=n;j++){ const p=gcPoint(a,b,j/n); p.t=t0+air*3600e3*j/n; p.idx=pts.length; pts.push(p); job.pts.push(p) }
     job.pts.forEach((p,j)=>{ if(j<n) p.crs=gcBrg(p,job.pts[j+1]); p.d= j<n? D/n : 0 }); jobs.push(job) });
   if(!jobs.length){ WX.status="ok"; WX.at=Date.now(); save(); plan(); return }
   WX.inflight=true; WX.status="loading"; WX.msg=""; renderWindBar();
@@ -810,15 +833,15 @@ const fmtDayClock=t=>{ const d=new Date(t); return d.toLocaleDateString("en-US",
 const compTxt=(c,full)=> c>0? `<b class="tw">+${c} kt</b>${full?" tail":""}` : (c<0? `<b class="hw">−${-c} kt</b>${full?" head":""}` : "<b>0 kt</b>");
 const signMin=m=> (m>0?"+":m<0?"−":"")+Math.floor(Math.abs(m)/60)+":"+String(Math.abs(m)%60).padStart(2,"0");
 // Plain-text wind notes for the notes list and the PDF.
-function windNotes(r,plain){ const out=[]; const legs=trip.legs.map((l,i)=>({l,i,tm:r.rows[i].tm})).filter(x=>x.l.to&&x.tm.block>0);
+function windNotes(r,plain){ const out=[]; const legs=trip.legs.map((l,i)=>({l,i,tm:r.rows[i].tm})).filter(x=>x.l.to&&x.tm.ok&&!x.tm.fallback);
   const txt=c=> plain? ((c>0?"+":"")+c+" kt") : compTxt(c);
   const f=legs.filter(x=>x.tm.src==="fcst"), m=legs.filter(x=>x.tm.src==="manual"), p=legs.filter(x=>x.tm.src==="plan"), none=legs.filter(x=>x.tm.src==="none");
-  if(f.length){ const at=Math.min(...f.map(x=>x.l.fcst.at)); const airTxt= f.every(x=>x.tm.itin)? "the itinerary flight time" : f.some(x=>x.tm.itin)? `the itinerary flight time (block minus ${fmt(+trip.taxi||0)} min where there is none)` : `block minus ${fmt(+trip.taxi||0)} min taxi`;
-    out.push(`Winds aloft (${f[0].l.fcst.model} forecast, fetched ${fmtDayClock(at)}; itinerary times treated as still air, wind applied to ${airTxt} at ${fmt(+trip.tas||0)} KTAS): `+f.map(x=>`${legFrom(x.i)}→${x.l.to} ${txt(x.tm.comp)} FL${x.tm.fl} (${signMin(x.tm.dMin)}, ${x.tm.dLb>0?"+":""}${fmt(x.tm.dLb)} lb${x.l.fcst.assumed?", departure time assumed":""})`).join("; ")+".") }
+  if(f.length){ const at=Math.min(...f.map(x=>x.l.fcst.at));
+    out.push(`Winds aloft (${f[0].l.fcst.model} forecast, fetched ${fmtDayClock(at)}; applied to the cruise segment at ${fmt(+trip.tas||0)} KTAS): `+f.map(x=>`${legFrom(x.i)}→${x.l.to} ${txt(x.tm.comp)} FL${x.tm.fl} (${signMin(x.tm.dMin)}, ${x.tm.dLb>0?"+":""}${fmt(x.tm.dLb)} lb${x.l.fcst.assumed?", departure time assumed":""})`).join("; ")+".") }
   if(m.length) out.push("Wind entered by hand: "+m.map(x=>`${legFrom(x.i)}→${x.l.to} ${txt(x.tm.comp)} (${signMin(x.tm.dMin)}, ${x.tm.dLb>0?"+":""}${fmt(x.tm.dLb)} lb)`).join("; ")+".");
   if(p.length) out.push("Burn from the filed flight plan: "+p.map(x=>`${legFrom(x.i)}→${x.l.to} ${fmt(+x.l.planBurn)} lb`).join("; ")+".");
   if(none.length&&trip.windsOn!==false){ const why=none.map(x=>`${legFrom(x.i)}→${x.l.to}`+(x.l.fcst&&!x.l.fcst.ok&&x.l.fcst.key===fcstKey(x.i)?" ("+x.l.fcst.why+")":" (not fetched)")).join(", "); out.push(`No forecast wind for ${why}; still-air block time used${WX.status==="error"?" — the fetch failed: "+WX.msg:""}.`) }
-  if(trip.windsOn===false&&none.length) out.push("Winds: itinerary block times used as still air. Tap Get forecast winds in the plan to apply the GFS forecast.");
+  if(trip.windsOn===false&&none.length) out.push("Winds: still air (aircraft profile burns). Tap Get forecast winds in the plan to apply the GFS forecast.");
   return out }
 function renderWindBar(){ const bar=$("windBar"); if(!bar) return; const r=compute(); const legs=windLegs();
   const planLegs=trip.legs.map((l,i)=>i).filter(i=>trip.legs[i].to&&+trip.legs[i].planBurn>0);
@@ -831,7 +854,7 @@ function renderWindBar(){ const bar=$("windBar"); if(!bar) return; const r=compu
   const covered=on&&!missing.length;
   const failedNow= WX.status==="error" && unfetched.length>0 && unfetched.every(i=>(WX.errKeys||[]).includes(fcstKey(i)));   // the legs still missing are the ones the last fetch failed on (not legs edited since)
   bar.classList.toggle("err",on&&failedNow);
-  const chips=[]; trip.legs.forEach((l,i)=>{ if(!l.to||!(hours(l.block)>0)&&!(+l.planBurn>0)) return; const tm=r.rows[i].tm; const lab=`<i>${legFrom(i)}→${l.to}</i>`;
+  const chips=[]; trip.legs.forEach((l,i)=>{ const tm=r.rows[i].tm; if(!l.to||!tm.ok||tm.fallback&&tm.src!=="plan") return; const lab=`<i>${legFrom(i)}→${l.to}</i>`;
     if(tm.src==="plan") chips.push(`<span>${lab} <b>${fmt(+l.planBurn)} lb</b> <i>flight plan</i></span>`);
     else if(tm.src==="manual") chips.push(`<span>${lab} ${compTxt(tm.comp)} <i>by hand · ${signMin(tm.dMin)}</i></span>`);
     else if(tm.src==="fcst") chips.push(`<span>${lab} ${compTxt(tm.comp)} <i>FL${tm.fl} · ${signMin(tm.dMin)}${l.fcst.assumed?" · dep assumed":""}</i></span>`);
@@ -840,7 +863,7 @@ function renderWindBar(){ const bar=$("windBar"); if(!bar) return; const r=compu
     else if(cur(i)&&!l.fcst.ok) chips.push(`<span>${lab} <i>no forecast: ${l.fcst.why}</i></span>`);
     else chips.push(`<span>${lab} <i>not fetched · still air</i></span>`) });
   let title, src="", btns="";
-  if(!on){ title="Winds: still air"; src="Itinerary block times used as they are"+(byHand.length||planLegs.length?" except where a wind or flight-plan burn was entered by hand":"")+". Get forecast winds pulls the GFS forecast for each leg's route, level and time and recalculates the plan.";
+  if(!on){ title="Winds: still air"; src="Burns from the aircraft profile in still air"+(byHand.length||planLegs.length?", except where a wind or flight-plan burn was entered by hand":"")+". Get forecast winds pulls the GFS forecast for each leg's route, level and time and recalculates the plan.";
     btns='<button class="primary" id="windGet"'+(loading?" disabled":"")+'>Get forecast winds</button>' }
   else if(loading){ title="Fetching forecast winds…"; btns='<button class="small" disabled>Fetching…</button>' }
   else if(failedNow){ title="Couldn't fetch the forecast"; src=WX.msg+". Legs without a wind use still-air block times."; btns='<button class="primary small" id="windRefresh">Try again</button><button class="small" id="windOff">Remove winds</button>' }
@@ -926,7 +949,7 @@ function render(){
   rendering=true;
   $("tripName").value=trip.name||""; $("startApt").value=trip.start||""; $("startFuel").value=trip.startFuel;
   $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap; $("mainsCap").value=trip.mainsCap||2550; $("endTarget").value=trip.endTarget||"";
-  $("tas").value=trip.tas; $("taxi").value=trip.taxi; $("flW").value=trip.flW; $("flE").value=trip.flE;
+  PROFILE_KEYS.forEach(k=>{ $(k).value=trip[k] }); $("flW").value=trip.flW; $("flE").value=trip.flE;
   const r=compute(); const list=$("legList"); list.innerHTML=""; const noFuel=(trip.startFuel===""||trip.startFuel==null);
   const hasLegs=trip.legs.some(l=>l.to), hasPool=pool.legs.length>0;
   let from=trip.start;
@@ -948,13 +971,15 @@ function render(){
       <div class="leg-in2">
         <label class="f">Dep (local${(()=>{const d=legDepUtc(i); return d&&d.assumed&&!leg.depTime?", assumed":""})()})<input type="text" id="dep${i}" value="${leg.depTime||""}" data-i="${i}" data-k="depTime" inputmode="numeric" placeholder="${(()=>{const d=legDepUtc(i); if(!d||!d.t) return "HH:MM"; const tz=(aptPos(legFrom(i))||{}).tz||localTz(); try{ return "~"+new Date(d.t).toLocaleTimeString("en-US",{timeZone:tz,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}) }catch(e){ return "HH:MM" }})()}"></label>
         <label class="f">Wind kt (+tail / −head)<input type="number" id="wind${i}" value="${leg.wind==null?"":leg.wind}" data-i="${i}" data-k="wind" step="5" inputmode="numeric" placeholder="${row.tm.src==="fcst"?"fcst "+(row.tm.comp>0?"+":"")+row.tm.comp:(trip.windsOn!==false?"no fcst":"still air")}"></label>
-        <label class="f">Flight-plan burn (lb)<input type="number" id="pb${i}" value="${+leg.planBurn>0?leg.planBurn:""}" data-i="${i}" data-k="planBurn" step="10" min="0" inputmode="numeric" placeholder="${fmt(row.tm.h*(+trip.burn||0))}"></label>
+        <label class="f">Flight-plan burn (lb)<input type="number" id="pb${i}" value="${+leg.planBurn>0?leg.planBurn:""}" data-i="${i}" data-k="planBurn" step="10" min="0" inputmode="numeric" placeholder="${row.tm.ok?fmt(row.tm.modelFuel!=null?row.tm.modelFuel:row.tm.fuel):"model"}"></label>
+        <label class="f">Distance (nm${leg.distSrc==="itin"&&+leg.dist>0?", itinerary":""})<input type="number" id="dist${i}" value="${+leg.dist>0?leg.dist:""}" data-i="${i}" data-k="dist" step="5" min="0" inputmode="numeric" placeholder="${(()=>{const a=aptPos(legFrom(i)),b=aptPos(leg.to); return a&&b? Math.round(gcNm(a,b))+" gc" : "nm"})()}"></label>
         <label class="f">FL (forecast level)<input type="number" id="fl${i}" value="${+leg.fl>0?leg.fl:""}" data-i="${i}" data-k="fl" step="10" min="100" max="350" inputmode="numeric" placeholder="${row.tm.fl}"></label>
       </div>
-      <div class="leg-wind">${(()=>{ const t=row.tm; if(!(t.block>0)) return "";
-        if(t.src==="plan") return `Burn <b>${fmt(+leg.planBurn)} lb</b> from the flight plan (block × ${fmt(+trip.burn||0)} would be ${fmt(t.block*(+trip.burn||0))} lb)`;
-        const w= t.src==="manual"? `wind by hand ${compTxt(t.comp,true)}` : t.src==="fcst"? `forecast ${compTxt(t.comp,true)} at FL${t.fl}${leg.fcst&&leg.fcst.mid?` (${String(leg.fcst.mid.dir).padStart(3,"0")}°/${leg.fcst.mid.spd} kt mid-route)`:""}` : (trip.windsOn===false?"still air":(leg.fcst&&!leg.fcst.ok&&leg.fcst.key===fcstKey(i)?"no forecast ("+leg.fcst.why+"), still air":"still air"));
-        return `${w} · block ${blockFmt(t.block)}${t.src!=="none"?` → <b>${blockFmt(t.h)}</b> (${signMin(t.dMin)}, ${t.dLb>0?"+":""}${fmt(t.dLb)} lb)`:""} · burn <b>${fmt(row.legBurn)} lb</b>` })()}</div>
+      <div class="leg-wind">${(()=>{ const t=row.tm; if(!t.ok) return isEnd||leg.to? "No distance or block time for this leg yet." : "";
+        if(t.src==="plan") return `Burn <b>${fmt(+leg.planBurn)} lb</b> from the flight plan (profile would give ${fmt(t.modelFuel||0)} lb)`;
+        if(t.fallback) return `No distance on file: block ${blockFmt(t.itinBlock)} × ${fmt(+trip.burn||0)} lb/hr = <b>${fmt(t.fuel)} lb</b>`;
+        const w= t.src==="manual"? `wind by hand ${compTxt(t.comp,true)}` : t.src==="fcst"? `forecast ${compTxt(t.comp,true)} at FL${t.fl}${leg.fcst&&leg.fcst.mid?` (${String(leg.fcst.mid.dir).padStart(3,"0")}°/${leg.fcst.mid.spd} kt mid-route)`:""}` : (trip.windsOn===false?"still air":(leg.fcst&&!leg.fcst.ok&&leg.fcst.key===fcstKey(i)?"no forecast ("+leg.fcst.why+"), still air":"still air, forecast not fetched"));
+        return `${t.dist} nm${t.distSrc==="gc"?" (great circle)":""} · ${w} · flight <b>${blockFmt(t.flight)}</b>${t.src!=="none"?` (${signMin(t.dMin)})`:""}${t.itinBlock>0?` · itinerary block ${blockFmt(t.itinBlock)}`:""} · burn <b>${fmt(t.fuel)} lb</b>${t.src!=="none"?` (${t.dLb>0?"+":""}${fmt(t.dLb)})`:""}${t.short?" · short leg, climb/descent scaled":""}` })()}</div>
       <div class="leg-out">
         <div><small>Takeoff</small><b>${noFuel?"–":fmt(row.depart)}</b></div>
         <div><small>Land</small><b>${noFuel?"–":fmt(row.land)}</b></div>
@@ -966,7 +991,7 @@ function render(){
     list.appendChild(card); from=leg.to;
   });
   $("legsSummary").innerHTML= hasLegs? `Edit legs <small>· ${trip.start||"?"} → ${trip.legs.filter(l=>l.to).map(l=>l.to).join(" → ")}</small>` : "Edit legs";
-  $("acSummary").innerHTML=`Aircraft settings <small>· ${fmt(+trip.burn||0)} lb/hr · ${fmt(+trip.minLand||0)} min landing · ${fmt(+trip.cap||0)} cap · ${fmt(+trip.mainsCap||2550)} mains · ${fmt(+trip.tas||0)} KTAS · FL${trip.flW}/FL${trip.flE}</small>`;
+  $("acSummary").innerHTML=`Aircraft settings <small>· taxi ${fmt(+trip.taxiLb||0)} · climb ${fmt(+trip.climbLb||0)} · ${fmt(+trip.tas||0)} KTAS @ ${fmt(+trip.cruisePph||0)} lb/hr · desc ${fmt(+trip.descLb||0)} · +${+trip.cont||0}% · ${fmt(+trip.minLand||0)} min landing · ${fmt(+trip.cap||0)} cap</small>`;
 
   // ---- start card: three steps ----
   const worst=r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="bad")||r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="warn");
@@ -1039,7 +1064,7 @@ function render(){
   r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to) return;
     if(row.cls==="bad") notes.push(`${l.to}: ${row.check} (${row.check==="LOW FUEL"?"land "+fmt(row.land)+" lbs":"depart "+fmt(row.depart)+" lbs"}). Buy more at an earlier stop or less at the one before.`);
     if(row.check==="FEE NOT WAIVED"&&!noFuel) notes.push(`${l.to}: buying ${row.buy} gal, minimum is ${row.min}, so the ${money(row.f.waive)} fee is not waived.`);
-    if(row.check==="GAP — ENTER BLOCK") notes.push(`Leg to ${l.to} isn't on any itinerary (the days don't connect). Enter its block time under Edit legs.`);
+    if(row.check==="GAP — ENTER DISTANCE") notes.push(`Leg to ${l.to} isn't on any itinerary (the days don't connect) and ${l.to} isn't in the airport table. Enter its distance under Edit legs.`);
     if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in the FBO library, so its fees are unknown.`);
     if(row.f.notes&&row.f.notes!=="Home base") notes.push(`${l.to}: ${row.f.notes}.`);
   });
@@ -1073,11 +1098,11 @@ document.addEventListener("input",e=>{
     if(k==="buy"){ l.buy= t.value===""? null : +t.value; trip.manual=true }
     else if(k==="to"){ l.to=t.value.toUpperCase() }
     else if(k==="block"){ l.block=t.value; l.blockEst=false }
-    else if(k==="wind"||k==="planBurn"||k==="fl"){ l[k]= t.value===""? null : +t.value }
+    else if(k==="wind"||k==="planBurn"||k==="fl"||k==="dist"){ l[k]= t.value===""? null : +t.value; if(k==="dist") l.distSrc= t.value===""? null : "hand" }
     else l[k]=t.value;
     if(k==="ground"&&t.value==="end") l.buy=null;
-    plan(); if(k==="to"||k==="block"||k==="buy"||k==="wind"||k==="planBurn"||k==="fl"||k==="depTime"){ const el=$(t.id); if(el){el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length) }catch(_){} } }
-  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",mainsCap:"mainsCap",endTarget:"endTarget",tas:"tas",taxi:"taxi",flW:"flW",flE:"flE"};
+    plan(); if(k==="to"||k==="block"||k==="buy"||k==="wind"||k==="planBurn"||k==="fl"||k==="depTime"||k==="dist"){ const el=$(t.id); if(el){el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length) }catch(_){} } }
+  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",mainsCap:"mainsCap",endTarget:"endTarget",flW:"flW",flE:"flE"}; PROFILE_KEYS.forEach(k=>map[k]=k);
     if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; plan(); const el=$(keep); if(el) el.focus() } }
 });
 document.addEventListener("focusout",e=>{ const t=e.target; if(rendering) return;
@@ -1240,12 +1265,12 @@ function buildSummaryPdf(){
   legs.forEach(({l,row})=>{ if(row.cls==="bad") notes.push(`${l.to}: ${row.check}.`); if(l.ground!=="end"&&row.min>0&&row.buy<row.min) notes.push(`${l.to}: buying less than the ${row.min} gal minimum, so the ${money(row.f.waive)} fee is not waived.`);
     if(!fboFor(l.to)&&l.ground!=="end") notes.push(`${l.to}: not in the FBO library; fees unknown.`);
     if(l.ground!=="end"&&row.f.notes&&row.f.notes!=="Home base"&&!notes.includes(`${l.to}: ${row.f.notes}.`)) notes.push(`${l.to}: ${row.f.notes}.`);
-    if(row.check==="GAP — ENTER BLOCK") notes.push(`Leg to ${l.to} is not on any itinerary; block time missing.`); });
+    if(row.check==="GAP — ENTER DISTANCE") notes.push(`Leg to ${l.to} is not on any itinerary; distance missing.`); });
   if(notes.length){ if(y>680){ doc.addPage(); y=M } doc.setFont("helvetica","bold"); doc.setFontSize(9); col(GRAY); doc.text("NOTES",M,y); y+=14;
     doc.setFont("helvetica","normal"); doc.setFontSize(9.5); col(INK);
     notes.forEach(n=>{ const lines=doc.splitTextToSize(pdfTxt(n),R-M-14); if(y+lines.length*12>740){ doc.addPage(); y=M } doc.text("•",M+2,y); doc.text(lines,M+14,y); y+=lines.length*12+3; }); y+=6; }
   // assumptions + footer
-  const assum=`Burn ${fmt(+trip.burn||0)} lb/hr  •  Min landing ${fmt(+trip.minLand||0)} lb  •  Capacity ${fmt(+trip.cap||0)} lb  •  Fuel wanted at end ${trip.endTarget?fmt(+trip.endTarget)+" lb":"= min landing"}  •  Extra fuel to ${trip.extraMode==="min"?"min stops only":"cheapest stop"}  •  Jet-A 6.7 lb/gal  •  Winds: ${trip.windsOn===false?"off":`${fmt(+trip.tas||0)} KTAS, FL${trip.flW} west / FL${trip.flE} east, ${fmt(+trip.taxi||0)} min taxi per leg`}`;
+  const assum=`Burn per leg: taxi ${fmt(+trip.taxiLb||0)} lb  •  climb ${fmt(+trip.climbLb||0)} lb / ${fmt(+trip.climbMin||0)} min / ${fmt(+trip.climbNm||0)} nm  •  cruise ${fmt(+trip.tas||0)} KTAS at ${fmt(+trip.cruisePph||0)} lb/hr  •  descent ${fmt(+trip.descLb||0)} lb / ${fmt(+trip.descMin||0)} min / ${fmt(+trip.descNm||0)} nm  •  +${+trip.cont||0}% contingency on airborne fuel  •  Min landing ${fmt(+trip.minLand||0)} lb  •  Capacity ${fmt(+trip.cap||0)} lb  •  Fuel wanted at end ${trip.endTarget?fmt(+trip.endTarget)+" lb":"= min landing"}  •  Extra fuel to ${trip.extraMode==="min"?"min stops only":"cheapest stop"}  •  Jet-A 6.7 lb/gal  •  Winds: ${trip.windsOn===false?"still air":`forecast, FL${trip.flW} west / FL${trip.flE} east`}`;
   const pages=doc.getNumberOfPages();
   for(let pg=1;pg<=pages;pg++){ doc.setPage(pg); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); col(GRAY);
     if(pg===pages) doc.text(doc.splitTextToSize(pdfTxt(assum),R-M),M,742);
@@ -1383,13 +1408,13 @@ function loadDays(keys){
   const tails=[...new Set(sel.map(d=>d.tail))], trips=[...new Set(sel.flatMap(d=>d.trips))];
   const span= sel.length>1? `${(first.date||"?").slice(0,5)}–${last.date||"?"}` : (first.date||"?");
   const prevFcst={}; (trip.legs||[]).forEach((l,i)=>{ if(l.fcst) prevFcst[l.fcst.key]=l.fcst });   // keep forecasts already fetched for the same legs
-  trip=Object.assign({name:`${span} · ${tails.join("/")} · ${trips.join("+")}`,start:first.legs[0].from,startFuel:"",...AC_DEF,dv:3},acSettings(),{dayKeys:sel.map(d=>d.key),legs:[]});
+  trip=Object.assign({name:`${span} · ${tails.join("/")} · ${trips.join("+")}`,start:first.legs[0].from,startFuel:"",...AC_DEF,dv:4},acSettings(),{dayKeys:sel.map(d=>d.key),legs:[]});
   sel.forEach((d,di)=>{
     if(di>0){ const prevTo=trip.legs[trip.legs.length-1].to; if(prevTo!==d.legs[0].from) trip.legs.push({to:d.legs[0].from,block:"",ground:"quick",buy:null,gap:true,date:d.date}); }
     d.legs.forEach((l,i)=>{ let ground="quick";
       if(i===d.legs.length-1){ if(di<sel.length-1) ground="overnight";
         else ground=(after&&after.tail===d.tail&&after.legs[0].from===l.to&&l.to!=="VNY")? "overnight":"end"; }
-      trip.legs.push({to:l.to,block:l.block||"",blockEst:!!l.blockEst,flight:l.flight||"",ground,buy:null,gap:!!l.gap,date:d.date,depTime:l.depTime||"",arrTime:l.arrTime||""}); }); });
+      trip.legs.push({to:l.to,block:l.block||"",blockEst:!!l.blockEst,flight:l.flight||"",dist:+l.dist>0?+l.dist:null,distSrc:+l.dist>0?"itin":null,ground,buy:null,gap:!!l.gap,date:d.date,depTime:l.depTime||"",arrTime:l.arrTime||""}); }); });
   trip.legs.forEach((l,i)=>{ const k=fcstKey(i); if(prevFcst[k]) l.fcst=prevFcst[k] });
 }
 function loadDay(key){ loadDays([key]) }
