@@ -229,7 +229,7 @@ table.plan .wtag{display:block;font-family:var(--sans);font-weight:600;font-size
   <div class="brand"><img src="icon-192.png" alt="" class="logo"><h1>Clipper Fuel Planner</h1></div>
   <p>Where to buy fuel so FBO fees get waived. Jet-A at 6.7 lb/gal.</p>
   <div class="hdr-btns"><button id="helpBtn" class="icon" title="How it works" aria-label="How it works">?</button><button id="reloadBtn" class="small" title="Reload the page and the FBO list">↻<span class="rl"> Refresh</span></button></div>
-  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v48</span>
+  <span class="muted" id="ver" style="position:absolute;right:0;bottom:-16px">v49</span>
 </header>
 <div class="stickybar" id="stickybar" hidden>
   <div><b id="bDepart">–</b><small>depart lb</small></div>
@@ -330,6 +330,7 @@ table.plan .wtag{display:block;font-family:var(--sans);font-weight:600;font-size
   <details id="acDetails"><summary id="acSummary">Aircraft settings</summary>
   <div class="settings" style="margin-top:12px">
     <label class="f">Burn (lbs per block hr)<input type="number" id="burn" step="10"></label>
+    <label class="f">Minimum landing fuel (lbs)<input type="number" id="floorLand" step="10"></label>
     <label class="f">Landing fuel target (lbs)<input type="number" id="minLand" step="10"></label>
     <label class="f">Usable capacity (lbs)<input type="number" id="cap" step="10"></label>
     <label class="f">Mains capacity (lbs)<input type="number" id="mainsCap" step="10"></label>
@@ -344,7 +345,7 @@ table.plan .wtag{display:block;font-family:var(--sans);font-weight:600;font-size
 
 <section class="panel">
   <details id="libDetails" open>
-  <summary>FBO library · from Clipper itineraries only · updated 2026-11-14</summary>
+  <summary>FBO library · from Clipper itineraries only · updated 2026-11-25</summary>
   <div class="tablewrap">
   <table id="fbos">
     <thead><tr>
@@ -406,7 +407,11 @@ const FBOS=[
   "parking": 75,
   "source": "QVCGX4",
   "feeSrc": "QVCGX4",
-  "asOf": "2026-11-21"
+  "asOf": "2026-11-29",
+  "price": 8.01,
+  "vendor": "Titan",
+  "notes": "Titan tiers: 1+ $8.01 · 400+ $7.68 · 1000+ $7.48",
+  "priceSrc": "QVCGX4"
  },
  {
   "icao": "BUR",
@@ -480,6 +485,22 @@ const FBOS=[
   "asOf": "2026-10-28"
  },
  {
+  "icao": "MMH",
+  "fbo": "Hot Creek Aviation",
+  "min": 100,
+  "waive": 450,
+  "landing": 0,
+  "infra": 0,
+  "parking": 150,
+  "price": 9.46,
+  "vendor": "Titan",
+  "notes": "Titan: 1+ $9.46",
+  "source": "STT6AQ",
+  "feeSrc": "STT6AQ",
+  "priceSrc": "STT6AQ",
+  "asOf": "2026-11-29"
+ },
+ {
   "icao": "NUQ",
   "fbo": "Avports",
   "min": 150,
@@ -515,13 +536,13 @@ const FBOS=[
   "landing": 78,
   "infra": 65,
   "parking": 363,
-  "price": 9.78,
+  "price": 9.52,
   "vendor": "AEG",
-  "notes": "AEG tiers: 1+ $9.78 · 401+ $9.71 · 801+ $9.65 · 1201+ $8.96 · 2001+ $8.27",
+  "notes": "AEG tiers: 1+ $9.52 · 401+ $9.45 · 801+ $9.39 · 1201+ $8.70 · 2001+ $8.01",
   "source": "QVCGX4",
   "feeSrc": "QVCGX4",
-  "priceSrc": "N5P1BV",
-  "asOf": "2026-11-21"
+  "priceSrc": "QVCGX4",
+  "asOf": "2026-11-29"
  },
  {
   "icao": "PRB",
@@ -587,6 +608,22 @@ const FBOS=[
   "asOf": "2026-10-23"
  },
  {
+  "icao": "SDL",
+  "fbo": "Jet Aviation Scottsdale",
+  "min": 140,
+  "waive": 440,
+  "landing": 23,
+  "infra": 50,
+  "parking": 150,
+  "price": 7.04,
+  "vendor": "AEG",
+  "notes": "AEG tiers: 1+ $7.04 · 251+ $6.99 · 501+ $6.89 · 1001+ $6.84 · 1501+ $6.79",
+  "source": "V9F1OK",
+  "feeSrc": "V9F1OK",
+  "priceSrc": "V9F1OK",
+  "asOf": "2026-11-27"
+ },
+ {
   "icao": "SEZ",
   "fbo": "Red Rock Aviation Services",
   "min": 0,
@@ -622,13 +659,29 @@ const FBOS=[
   "landing": 0,
   "infra": 0,
   "parking": 255,
-  "price": 7.72,
+  "price": 8.02,
   "vendor": "Avfuel",
-  "notes": "1 night parking free; Avfuel tiers: 1+ $7.72 · 1000+ $7.22 · 2000+ $7.12",
-  "source": "4V7SII",
-  "feeSrc": "4V7SII",
-  "priceSrc": "4V7SII",
-  "asOf": "2026-09-20"
+  "notes": "1 night parking free; Avfuel tiers: 1+ $8.02 · 1000+ $7.52 · 2000+ $7.42",
+  "source": "STT6AQ",
+  "feeSrc": "STT6AQ",
+  "priceSrc": "STT6AQ",
+  "asOf": "2026-11-29"
+ },
+ {
+  "icao": "STS",
+  "fbo": "Sonoma Jet Center",
+  "min": 130,
+  "waive": 175,
+  "landing": 46,
+  "infra": 0,
+  "parking": 90,
+  "price": 6.91,
+  "vendor": "Avfuel",
+  "notes": "Avfuel tiers: 1+ $6.91 · 500+ $6.81 · 1200+ $6.71 · 2000+ $6.56",
+  "source": "V9F1OK",
+  "feeSrc": "V9F1OK",
+  "priceSrc": "V9F1OK",
+  "asOf": "2026-11-27"
  },
  {
   "icao": "VGT",
@@ -651,12 +704,12 @@ const FBOS=[
   "landing": 0,
   "infra": 0,
   "parking": 0,
-  "price": 7.69,
+  "price": 7.24,
   "vendor": "AEG",
-  "notes": "Home base: no FBO fees on Clipper itineraries. AEG tiers: 1+ $7.69 · 501+ $7.59 · 1000+ $7.49 · 1500+ $7.34 · 2000+ $7.24",
-  "source": "IOUWN2",
-  "priceSrc": "IOUWN2",
-  "asOf": "2026-10-28"
+  "notes": "Home base: no FBO fees on Clipper itineraries. AEG tiers: 1+ $7.24 · 501+ $7.14 · 1000+ $7.04 · 1500+ $6.89 · 2000+ $6.79",
+  "source": "QVCGX4",
+  "priceSrc": "QVCGX4",
+  "asOf": "2026-11-21"
  },
  {
   "icao": "WVI",
@@ -675,7 +728,7 @@ const FBOS=[
  }
 ];
 // v45 aircraft defaults: King Air 350 cruise TAS, taxi allowance per leg, cruise levels by direction (hemispheric rule: east = odd, west = even)
-const AC_DEF={burn:850,minLand:1200,cap:3611,mainsCap:2550,tas:300,taxi:18,flW:260,flE:250,windsOn:false};   // windsOn: forecast winds are opt-in per trip (the "Get forecast winds" button)
+const AC_DEF={burn:850,floorLand:1000,minLand:1200,cap:3611,mainsCap:2550,tas:300,taxi:18,flW:260,flE:250,windsOn:false};   // windsOn: forecast winds are opt-in per trip (the "Get forecast winds" button)
 const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,...AC_DEF,dv:3,
  legs:[{to:"SBA",block:"0:42",ground:"quick",buy:null,depTime:"07:48"},{to:"NUQ",block:"1:18",ground:"quick",buy:null},
        {to:"HHR",block:"1:24",ground:"quick",buy:null},{to:"VGT",block:"1:12",ground:"quick",buy:null},
@@ -683,13 +736,14 @@ const EXAMPLE_TRIP={name:"10/19 Surf Air (7HICKX)",start:"VNY",startFuel:2550,..
 
 const DEFAULT_TRIP={name:"",start:"VNY",startFuel:"",...AC_DEF,dv:3,legs:[{to:"",block:"",ground:"quick",buy:null}]};
 // the per-phone aircraft settings that carry from one trip to the next
-const acSettings=()=>({burn:trip.burn,minLand:trip.minLand,cap:trip.cap,mainsCap:trip.mainsCap,tas:trip.tas,taxi:trip.taxi,flW:trip.flW,flE:trip.flE,endTarget:trip.endTarget||"",extraMode:trip.extraMode});
+const acSettings=()=>({burn:trip.burn,floorLand:trip.floorLand,minLand:trip.minLand,cap:trip.cap,mainsCap:trip.mainsCap,tas:trip.tas,taxi:trip.taxi,flW:trip.flW,flE:trip.flE,endTarget:trip.endTarget||"",extraMode:trip.extraMode});
 let fbos=structuredClone(FBOS), trip;   // fbos is replaced by the shared library once db answers
 function load(){
   try{ trip=JSON.parse(localStorage.getItem("cfp.trip")) }catch(e){}
   if(!trip||!Array.isArray(trip.legs)) trip=structuredClone(DEFAULT_TRIP);
   // v34 defaults: 850 lb/hr burn, 1,200 lb min landing. Phones still on the old defaults (700 / 1,000) move up once; values someone set by hand stay.
   if(!trip.mainsCap) trip.mainsCap=2550;
+  if(trip.floorLand==null||trip.floorLand==="") trip.floorLand=AC_DEF.floorLand;   // v49: hard minimum landing fuel at every stop
   if(trip.dv<2||trip.dv==null){ if(+trip.burn===700||!trip.burn) trip.burn=850; if(+trip.minLand===1000||!trip.minLand) trip.minLand=1200; trip.dv=2 }
   if(trip.dv<3){ trip.dv=3 }
   // v45: wind settings for phones that saved a trip before winds existed
@@ -762,6 +816,7 @@ function legTiming(i){ const l=trip.legs[i]; const block=hours(l.block), tas=Mat
   return out }
 function fcstKey(i){ const l=trip.legs[i]; const d=legDepUtc(i); return [legFrom(i),l.to,d?Math.round(d.t/3600e3):"?",legFL(i)].join("|") }
 
+const floorLb=()=>Math.max(0,+trip.floorLand||0);
 function compute(){
   const sb=+trip.startBuy||0, sf=fboFor(trip.start)||{};
   let fuel=(+trip.startFuel||0)+sb*LBS; const burn=+trip.burn||0; const rows=[]; let tot={gal:sb,lbs:sb*LBS,waived:0,owed:0,cost:0,unknownPrice:false};
@@ -783,8 +838,9 @@ function compute(){
     else if(leg.gap&&!hours(leg.block)){check="GAP — ENTER BLOCK";cls="warn"}
     else if(depart>+trip.cap) {check="OVER CAPACITY";cls="bad"}
     else if(land<=0){check="OUT OF FUEL";cls="bad"}
+    else if(land<floorLb()){check="BELOW "+fmt(floorLb())+" LB";cls="bad"}   // v49: every landing must be at or above the minimum landing fuel
     else if(!isEnd && (f.min||0)>0 && !met){check="FEE NOT WAIVED";cls="warn"}
-    const belowTarget= trip.startFuel!==""&&trip.startFuel!=null&&!!leg.to&&land>0&&land<+trip.minLand;   // landing fuel is a planning target, not a limit
+    const belowTarget= trip.startFuel!==""&&trip.startFuel!=null&&!!leg.to&&land>=floorLb()&&land>0&&land<+trip.minLand;   // landing fuel is a planning target, not a limit
     rows.push({belowTarget,depart,land,buy,lbs,min:f.min||0,waived,owed,check,cls,f,tm,legBurn});
     tot.gal+=buy; tot.lbs+=lbs; tot.waived+=waived; tot.owed+=owed;
     if(buy>0){ if(f.price) tot.cost+=buy*f.price; else tot.unknownPrice=true }
@@ -938,14 +994,27 @@ function autoPlan(){
     return addGal*LBS; };
   const byPrice=(a,b)=>((a.f.price)||99)-((b.f.price)||99);            // cheapest first; no price = treated as expensive
   const okStop=f=> trip.extraMode==="min" ? (f.min>0) : true;          // "Min stops only": extra fuel only where a waiver minimum already forces a purchase
-  const minLand=+trip.minLand||0;
+  const floor=floorLb();
+  const minLand=Math.max(floor,+trip.minLand||0);
+  for(let guard=0;guard<60;guard++){                                    // 2a. HARD minimum: every landing at or above the minimum landing fuel. Uses the stops the mode allows first, then any earlier stop, including the start airport before departure.
+    r=compute(); const badIdx=r.rows.map((row,i)=>trip.legs[i].to&&row.land<floor?i:-1).filter(i=>i>=0); if(!badIdx.length) break;
+    let fixedOne=false;
+    for(const bad of badIdx){
+      let need=floor - r.rows[bad].land;
+      const all=[startCand(),...trip.legs.slice(0,bad).map((l,i)=>({l,i,f:fboFor(l.to)||{}}))].filter(x=>x.l.to&&x.l.ground!=="end");
+      const prior=[...all.filter(x=>okStop(x.f)).sort(byPrice), ...all.filter(x=>!okStop(x.f)).sort(byPrice)];
+      let got=0; for(const c of prior){ if(need<=0) break; const a=addAt(c,need); need-=a; got+=a }
+      if(got>0){ fixedOne=true; break }
+    }
+    if(!fixedOne){ r=compute(); lastPlanNote+=(lastPlanNote?" ":"")+r.rows.map((row,i)=>trip.legs[i].to&&row.land<floor?trip.legs[i].to:null).filter(Boolean).join(", ")+": the "+fmt(floor)+" lb minimum landing fuel can't be reached within capacity."; break }
+  }
   const cantFix=new Set();
-  for(let guard=0;guard<40;guard++){                                    // 2. every landing must be at or above the minimum landing fuel
+  for(let guard=0;guard<40;guard++){                                    // 2b. then try for the landing target (soft)
     r=compute(); const bad=r.rows.findIndex((row,i)=>trip.legs[i].to&&row.land<minLand&&!cantFix.has(i)); if(bad<0) break;
     let need=minLand - r.rows[bad].land;
     const prior=[startCand(),...trip.legs.slice(0,bad).map((l,i)=>({l,i,f:fboFor(l.to)||{}}))].filter(x=>x.l.to&&x.l.ground!=="end"&&okStop(x.f)).sort(byPrice);
     let got=0; for(const c of prior){ if(need<=0) break; const a=addAt(c,need); need-=a; got+=a }
-    if(got<=0){ cantFix.add(bad); lastPlanNote+=(lastPlanNote?" ":"")+"The "+fmt(minLand)+" lb landing target at "+trip.legs[bad].to+" can't be reached within capacity."; }   // skip it and keep fixing later legs
+    if(got<=0){ cantFix.add(bad); lastPlanNote+=(lastPlanNote?" ":"")+"The "+fmt(minLand)+" lb landing target at "+trip.legs[bad].to+(trip.extraMode==="min"?" can't be reached from fee stops alone.":" can't be reached within capacity."); }   // skip it and keep fixing later legs
   }
   const target=Math.max(minLand, +trip.endTarget||0);
   let short=target - compute().final;                                   // 3. extra fuel wanted at the end of the day
@@ -969,7 +1038,7 @@ let editBuy=null, rendering=false;
 function render(){
   rendering=true;
   $("tripName").value=trip.name||""; $("startApt").value=trip.start||""; $("startFuel").value=trip.startFuel;
-  $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("cap").value=trip.cap; $("mainsCap").value=trip.mainsCap||2550; $("endTarget").value=trip.endTarget||"";
+  $("burn").value=trip.burn; $("minLand").value=trip.minLand; $("floorLand").value=trip.floorLand; $("cap").value=trip.cap; $("mainsCap").value=trip.mainsCap||2550; $("endTarget").value=trip.endTarget||"";
   $("tas").value=trip.tas; $("taxi").value=trip.taxi; $("flW").value=trip.flW; $("flE").value=trip.flE;
   const r=compute(); const list=$("legList"); list.innerHTML=""; const noFuel=(trip.startFuel===""||trip.startFuel==null);
   const hasLegs=trip.legs.some(l=>l.to), hasPool=pool.legs.length>0;
@@ -1010,7 +1079,7 @@ function render(){
     list.appendChild(card); from=leg.to;
   });
   $("legsSummary").innerHTML= hasLegs? `Edit legs <small>· ${trip.start||"?"} → ${trip.legs.filter(l=>l.to).map(l=>l.to).join(" → ")}</small>` : "Edit legs";
-  $("acSummary").innerHTML=`Aircraft settings <small>· ${fmt(+trip.burn||0)} lb/hr · ${fmt(+trip.minLand||0)} landing target · ${fmt(+trip.cap||0)} cap · ${fmt(+trip.mainsCap||2550)} mains · ${fmt(+trip.tas||0)} KTAS · FL${trip.flW}/FL${trip.flE}</small>`;
+  $("acSummary").innerHTML=`Aircraft settings <small>· ${fmt(+trip.burn||0)} lb/hr · ${fmt(floorLb())} min landing · ${fmt(+trip.minLand||0)} target · ${fmt(+trip.cap||0)} cap · ${fmt(+trip.mainsCap||2550)} mains · ${fmt(+trip.tas||0)} KTAS · FL${trip.flW}/FL${trip.flE}</small>`;
 
   // ---- start card: three steps ----
   const worst=r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="bad")||r.rows.find((x,i)=>trip.legs[i].to&&x.cls==="warn");
@@ -1081,7 +1150,7 @@ function render(){
   // ---- notes ----
   const notes=[];
   r.rows.forEach((row,i)=>{ const l=trip.legs[i]; if(!l.to) return;
-    if(row.cls==="bad") notes.push(`${l.to}: ${row.check} (${row.check==="OUT OF FUEL"?"land "+fmt(row.land)+" lbs":"depart "+fmt(row.depart)+" lbs"}). Buy more at an earlier stop or less at the one before.`);
+    if(row.cls==="bad") notes.push(`${l.to}: ${row.check} (${row.check==="OUT OF FUEL"||row.check.startsWith("BELOW ")?"land "+fmt(row.land)+" lbs":"depart "+fmt(row.depart)+" lbs"}). Buy more at an earlier stop or less at the one before.`);
     if(row.belowTarget) notes.push(`${l.to}: lands with ${fmt(row.land)} lb, below the ${fmt(+trip.minLand)} lb target.`);
     if(row.check==="FEE NOT WAIVED"&&!noFuel) notes.push(`${l.to}: buying ${row.buy} gal, minimum is ${row.min}, so the ${money(row.f.waive)} fee is not waived.`);
     if(row.check==="GAP — ENTER BLOCK") notes.push(`Leg to ${l.to} isn't on any itinerary (the days don't connect). Enter its block time under Edit legs.`);
@@ -1122,7 +1191,7 @@ document.addEventListener("input",e=>{
     else l[k]=t.value;
     if(k==="ground"&&t.value==="end") l.buy=null;
     plan(); if(k==="to"||k==="block"||k==="buy"||k==="wind"||k==="planBurn"||k==="fl"||k==="depTime"){ const el=$(t.id); if(el){el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length) }catch(_){} } }
-  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",minLand:"minLand",cap:"cap",mainsCap:"mainsCap",endTarget:"endTarget",tas:"tas",taxi:"taxi",flW:"flW",flE:"flE"};
+  } else { const map={tripName:"name",startApt:"start",startFuel:"startFuel",burn:"burn",floorLand:"floorLand",minLand:"minLand",cap:"cap",mainsCap:"mainsCap",endTarget:"endTarget",tas:"tas",taxi:"taxi",flW:"flW",flE:"flE"};
     if(map[t.id]){ trip[map[t.id]]= (t.type==="number")? (t.value===""?"":+t.value) : (t.id==="startApt"?t.value.toUpperCase():t.value); const keep=t.id; plan(); const el=$(keep); if(el) el.focus() } }
 });
 document.addEventListener("focusout",e=>{ const t=e.target; if(rendering) return;
@@ -1291,7 +1360,7 @@ function buildSummaryPdf(){
     doc.setFont("helvetica","normal"); doc.setFontSize(9.5); col(INK);
     notes.forEach(n=>{ const lines=doc.splitTextToSize(pdfTxt(n),R-M-14); if(y+lines.length*12>740){ doc.addPage(); y=M } doc.text("•",M+2,y); doc.text(lines,M+14,y); y+=lines.length*12+3; }); y+=6; }
   // assumptions + footer
-  const assum=`Burn ${fmt(+trip.burn||0)} lb/hr  •  Landing target ${fmt(+trip.minLand||0)} lb  •  Capacity ${fmt(+trip.cap||0)} lb  •  Fuel wanted at end ${trip.endTarget?fmt(+trip.endTarget)+" lb":"= landing target"}  •  Extra fuel to ${trip.extraMode==="min"?"min stops only":"cheapest stop"}  •  Jet-A 6.7 lb/gal  •  Winds: ${trip.windsOn===false?"off":`${fmt(+trip.tas||0)} KTAS, FL${trip.flW} west / FL${trip.flE} east, ${fmt(+trip.taxi||0)} min taxi per leg`}`;
+  const assum=`Burn ${fmt(+trip.burn||0)} lb/hr  •  Min landing ${fmt(floorLb())} lb  •  Landing target ${fmt(+trip.minLand||0)} lb  •  Capacity ${fmt(+trip.cap||0)} lb  •  Fuel wanted at end ${trip.endTarget?fmt(+trip.endTarget)+" lb":"= landing target"}  •  Extra fuel to ${trip.extraMode==="min"?"min stops only":"cheapest stop"}  •  Jet-A 6.7 lb/gal  •  Winds: ${trip.windsOn===false?"off":`${fmt(+trip.tas||0)} KTAS, FL${trip.flW} west / FL${trip.flE} east, ${fmt(+trip.taxi||0)} min taxi per leg`}`;
   const pages=doc.getNumberOfPages();
   for(let pg=1;pg<=pages;pg++){ doc.setPage(pg); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); col(GRAY);
     if(pg===pages) doc.text(doc.splitTextToSize(pdfTxt(assum),R-M),M,742);
